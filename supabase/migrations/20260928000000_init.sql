@@ -1,6 +1,6 @@
 -- ============================================================
 -- Rainbucks: Datenbank-Schema
--- Im Supabase-Dashboard unter "SQL Editor" einfügen und "Run" klicken.
+-- Lokal: wird von "npm run db:start" automatisch ausgeführt.
 -- ============================================================
 -- Hinweis: E-Mail und Passwort speichert Supabase selbst in der
 -- geschützten Tabelle "auth.users". Passwörter liegen dort nur als

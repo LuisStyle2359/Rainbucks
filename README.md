@@ -1,8 +1,8 @@
 # Rainbucks – Webanwendung mit Registrierung, Login und Dashboard
 
-Eine moderne Web-App mit Startseite, Registrierung, Login/Logout und einem geschützten Dashboard. Sie läuft **kostenlos** online, auf **Vercel** (Website + Server) und **Supabase** (Datenbank + Login-System).
+Eine moderne Web-App mit Startseite, Registrierung, Login/Logout und einem geschützten Dashboard. Aufgebaut mit **Next.js** und **Supabase** (Datenbank + Login-System).
 
-Diese Anleitung führt dich in 4 Phasen von null bis zur öffentlichen URL.
+> **Aktueller Stand:** Die App läuft **komplett lokal auf deinem Computer**. Du brauchst noch kein Cloud-Konto. Die Veröffentlichung im Internet (Phase 4) wird eingerichtet, sobald du so weit bist.
 
 ---
 
@@ -14,7 +14,8 @@ Diese Anleitung führt dich in 4 Phasen von null bis zur öffentlichen URL.
 | Backend | **Next.js Server Actions, Route Handler & Proxy** | Formulare verarbeiten, Login prüfen, Dashboard schützen |
 | Datenbank | **Supabase** (PostgreSQL) | Nutzerdaten und Profile speichern |
 | Authentifizierung | **Supabase Auth** | Konto anlegen, Login, Logout, E-Mail-Bestätigung |
-| Hosting | **Vercel** (App) + **Supabase Cloud** (Datenbank) | Beides kostenlos |
+| Lokal | **Supabase CLI** in **Docker** | Datenbank, Login und E-Mail-Postfach auf deinem Computer |
+| Hosting (später) | **Vercel** (App) + **Supabase Cloud** (Datenbank) | Beides kostenlos |
 
 **Warum diese Kombination?**
 
@@ -25,25 +26,27 @@ Diese Anleitung führt dich in 4 Phasen von null bis zur öffentlichen URL.
 
 ---
 
-## Phase 2: Projekt-Setup
+## Phase 2: Projekt-Setup (lokal)
 
 ### 2.1 Programme installieren
 
 1. **Node.js (LTS-Version)**: https://nodejs.org → „LTS“ herunterladen und installieren.
-   Prüfen im Terminal:
-   ```bash
-   node -v    # sollte v20 oder höher anzeigen
-   npm -v
-   ```
 2. **Git**: https://git-scm.com/downloads
-3. **VS Code** (Code-Editor, empfohlen): https://code.visualstudio.com
-4. Kostenlose Konten bei **GitHub** (https://github.com), **Supabase** (https://supabase.com) und **Vercel** (https://vercel.com). Melde dich bei Supabase und Vercel am einfachsten direkt **mit deinem GitHub-Konto** an.
+3. **Docker Desktop**: https://www.docker.com/products/docker-desktop
+   Darin läuft die lokale Datenbank samt Login-System. Nach der Installation Docker Desktop **einmal öffnen** und warten, bis „Engine running“ angezeigt wird.
+4. **VS Code** (Code-Editor, empfohlen): https://code.visualstudio.com
+
+Prüfen im Terminal:
+
+```bash
+node -v      # sollte v20 oder höher anzeigen
+git --version
+docker -v
+```
 
 > **Terminal öffnen:** Windows: „PowerShell“ im Startmenü suchen. Mac: „Terminal“ über Spotlight (⌘ + Leertaste). In VS Code: Menü *Terminal → New Terminal*.
 
-### 2.2 Projekt anlegen
-
-**Variante A: dieses Repository klonen (am schnellsten)**
+### 2.2 Projekt herunterladen und starten (3 Befehle)
 
 ```bash
 git clone https://github.com/luisstyle2359/rainbucks.git
@@ -51,25 +54,52 @@ cd rainbucks
 npm install
 ```
 
-**Variante B: von Grund auf selbst bauen**
+(Alternativ: das ZIP entpacken und im Terminal mit `cd` in den Ordner `rainbucks` wechseln.)
+
+Dann:
 
 ```bash
-npx create-next-app@latest rainbucks --ts --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm --yes
-cd rainbucks
-npm install @supabase/ssr @supabase/supabase-js
+npm run db:start   # startet Datenbank + Login-System (Docker muss laufen)
+npm run dev        # startet die Website
 ```
 
-Danach legst du die Dateien aus **Phase 3** an bzw. ersetzt die vorhandenen.
+Der **erste** `npm run db:start` lädt einige Docker-Images herunter und dauert ein paar Minuten, danach geht es in Sekunden. Er legt automatisch die Datenbank-Tabellen an und schreibt die Datei `.env.local` mit den passenden Schlüsseln. Du musst **nichts kopieren**.
 
-### 2.3 Ordnerstruktur
+### 2.3 Das läuft jetzt auf deinem Computer
+
+| Adresse | Was ist das? |
+|---|---|
+| http://localhost:3000 | **Deine Website** |
+| http://127.0.0.1:54324 | **Lokales E-Mail-Postfach (Mailpit).** Hier landen alle Bestätigungs-Mails. Es werden keine echten E-Mails verschickt. |
+| http://127.0.0.1:54323 | **Supabase Studio.** Hier siehst du deine Datenbank (Tabellen `profiles` und unter *Authentication* die Nutzer). |
+
+**Ausprobieren:** Auf http://localhost:3000 registrieren. Dann in Mailpit die Mail öffnen und auf den Bestätigungslink klicken. Du landest im Dashboard. Danach ausloggen und wieder einloggen. 🎉
+
+### 2.4 Täglicher Ablauf
+
+| Befehl | Wirkung |
+|---|---|
+| `npm run db:start` | Datenbank starten (Docker Desktop muss offen sein) |
+| `npm run dev` | Website starten, beenden mit `Strg + C` |
+| `npm run db:stop` | Datenbank stoppen (Daten bleiben erhalten) |
+| `npm run db:reset` | Datenbank **leeren** und Tabellen neu anlegen |
+| `npm run db:status` | Adressen und Schlüssel der lokalen Datenbank anzeigen |
+| `npm run build` | Produktions-Build testen (so wie später beim Veröffentlichen) |
+| `npm run lint` | Code auf Fehler prüfen |
+
+### 2.5 Ordnerstruktur
 
 ```
 rainbucks/
-├── .env.example                  ← Vorlage für deine geheimen Schlüssel
-├── .env.local                    ← deine echten Schlüssel (NICHT hochladen!)
-├── package.json
+├── .env.example                  ← Vorlage für die Schlüssel
+├── .env.local                    ← wird von "npm run db:start" erzeugt (NICHT hochladen!)
+├── package.json                  ← Abhängigkeiten + npm-Befehle
+├── scripts/
+│   └── setup-local-env.mjs       ← schreibt .env.local automatisch
 ├── supabase/
-│   └── schema.sql                ← Datenbank-Tabelle + Sicherheitsregeln
+│   ├── config.toml               ← Einstellungen der lokalen Supabase
+│   └── migrations/
+│       └── 20260928000000_init.sql ← Datenbank-Tabelle + Sicherheitsregeln
 └── src/
     ├── proxy.ts                  ← läuft vor jeder Anfrage: schützt /dashboard
     ├── lib/supabase/
@@ -95,42 +125,6 @@ rainbucks/
             └── confirm/route.ts  ← BACKEND: Link aus Bestätigungs-E-Mail
 ```
 
-### 2.4 Supabase-Projekt anlegen (Datenbank)
-
-1. Auf https://supabase.com/dashboard einloggen → **New project**.
-2. Name: `rainbucks`, ein **Datenbank-Passwort** festlegen (gut aufheben), Region: **Central EU (Frankfurt)**. → **Create new project** (dauert ca. 1–2 Minuten).
-3. Links auf **SQL Editor** klicken → **New query** → den kompletten Inhalt von [`supabase/schema.sql`](supabase/schema.sql) einfügen → **Run**. Es sollte „Success“ erscheinen.
-4. Schlüssel kopieren: **Project Settings → API Keys** (der *Publishable key*, beginnt mit `sb_publishable_…`) und **Project Settings → Data API** (die *Project URL*, `https://xxxx.supabase.co`).
-   Ältere Projekte zeigen statt des Publishable Keys einen **`anon` key**. Der funktioniert genauso.
-
-### 2.5 Schlüssel eintragen und lokal starten
-
-Kopiere `.env.example` zu `.env.local`:
-
-```bash
-# Mac/Linux
-cp .env.example .env.local
-# Windows (PowerShell)
-Copy-Item .env.example .env.local
-```
-
-Öffne `.env.local` und trage deine Werte ein:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://DEIN-PROJEKT.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-```
-
-Dann starten:
-
-```bash
-npm run dev
-```
-
-Öffne http://localhost:3000. Registriere dich, bestätige die E-Mail, logge dich ein. 🎉
-
-> **Tipp zum Testen:** Supabase verschickt im Gratis-Plan nur **wenige E-Mails pro Stunde**. Zum Ausprobieren kannst du unter **Authentication → Sign In / Providers** den Schalter **„Confirm email“** ausschalten. Dann bist du nach der Registrierung sofort eingeloggt. Für eine echte Website solltest du ihn wieder einschalten (siehe Phase 4).
-
 ---
 
 ## Phase 3: Der Code
@@ -153,9 +147,9 @@ Browser ──(/dashboard)──► src/proxy.ts prüft Cookie ──► kein Lo
                         (Row Level Security: jeder sieht nur sich selbst)
 ```
 
-### 3.1 Datenbank: `supabase/schema.sql`
+### 3.1 Datenbank: `supabase/migrations/20260928000000_init.sql`
 
-Legt die Tabelle `profiles` an, erlaubt jedem Nutzer nur den Zugriff auf **seine eigene** Zeile (Row Level Security) und legt bei jeder Registrierung automatisch ein Profil an.
+Wird von `npm run db:start` automatisch ausgeführt. Legt die Tabelle `profiles` an, erlaubt jedem Nutzer nur den Zugriff auf **seine eigene** Zeile (Row Level Security) und legt bei jeder Registrierung automatisch ein Profil an.
 
 ```sql
 create table if not exists public.profiles (
@@ -528,92 +522,26 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 - **`.env.local` wird nie hochgeladen** (steht in `.gitignore`). Der *Publishable Key* darf öffentlich sein. Den **Secret / service_role Key** darfst du dagegen **niemals** in den Code oder in `NEXT_PUBLIC_…`-Variablen schreiben.
 
 ---
-
 ## Phase 4: Live-Schaltung (Deployment)
 
-### Schritt 1: Code auf GitHub hochladen
+**Noch nicht eingerichtet.** Sobald du veröffentlichen willst, wird das Projekt dafür angepasst. Geplant ist:
 
-Falls du das Projekt selbst angelegt hast (Variante B):
+1. **Supabase Cloud** (kostenlos): ein Online-Projekt anlegen und dieselbe Datenbank-Migration dort einspielen.
+2. **Vercel** (kostenlos): die Website mit deinem GitHub-Repo verbinden und die Cloud-Schlüssel eintragen.
+3. **Supabase die Vercel-URL mitteilen**, damit die Bestätigungslinks auf deine echte Seite zeigen.
+4. Einen echten E-Mail-Versand einrichten (lokal fängt Mailpit alle Mails ab).
 
-1. Auf https://github.com/new ein neues Repository `rainbucks` erstellen (ohne README).
-2. Im Projektordner:
-   ```bash
-   git init
-   git add .
-   git commit -m "Erste Version"
-   git branch -M main
-   git remote add origin https://github.com/DEIN-NAME/rainbucks.git
-   git push -u origin main
-   ```
-
-> Liegt der Code schon auf GitHub, aber auf einem anderen Branch als `main`: Erstelle auf GitHub einen **Pull Request** in `main` und merge ihn. Vercel veröffentlicht standardmäßig den `main`-Branch.
-
-### Schritt 2: Auf Vercel veröffentlichen
-
-1. https://vercel.com → **Sign Up / Log in with GitHub**.
-2. **Add New… → Project** → dein Repository `rainbucks` → **Import**.
-   (Taucht es nicht auf: „Adjust GitHub App Permissions“ klicken und das Repo freigeben.)
-3. Framework wird automatisch als **Next.js** erkannt. Nichts ändern.
-4. **Environment Variables** aufklappen und beide Werte aus deiner `.env.local` eintragen:
-   | Key | Value |
-   |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | `https://DEIN-PROJEKT.supabase.co` |
-   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` |
-5. **Deploy** klicken, ca. 1 Minute warten.
-6. Du bekommst eine öffentliche URL, z. B. **`https://rainbucks.vercel.app`**. 🎉
-
-> Hast du die Umgebungsvariablen vergessen oder geändert? **Settings → Environment Variables** anpassen und dann unter **Deployments → ⋯ → Redeploy** neu veröffentlichen. `NEXT_PUBLIC_`-Werte werden beim Bauen fest eingebaut.
-
-### Schritt 3: Supabase die neue URL mitteilen (wichtig!)
-
-Sonst führen die Links in den Bestätigungs-E-Mails zu `localhost`.
-
-1. Supabase-Dashboard → **Authentication → URL Configuration**.
-2. **Site URL:** `https://rainbucks.vercel.app` (deine Vercel-URL).
-3. **Redirect URLs → Add URL:**
-   - `https://rainbucks.vercel.app/**`
-   - `http://localhost:3000/**` (damit es lokal weiter funktioniert)
-4. **Save**.
-5. Hattest du „Confirm email“ zum Testen ausgeschaltet? Jetzt unter **Authentication → Sign In / Providers** wieder **einschalten**.
-
-### Schritt 4: Testen
-
-Öffne deine Vercel-URL (auch auf dem Handy):
-Registrieren → E-Mail bestätigen → Dashboard → Ausloggen → `/dashboard` direkt aufrufen (sollte zu `/login` umleiten) → wieder einloggen. ✅
-
-### Ab jetzt: Änderungen veröffentlichen
-
-```bash
-git add .
-git commit -m "Beschreibung der Änderung"
-git push
-```
-
-Vercel baut und veröffentlicht jede Änderung auf `main` **automatisch** innerhalb ca. 1 Minute.
-
-### Gut zu wissen (Gratis-Pläne)
-
-- **E-Mail-Limit:** Supabase verschickt im Free-Plan nur sehr wenige Auth-E-Mails pro Stunde. Für echte Nutzer im Supabase-Dashboard unter **Authentication** bei den E-Mail-/**SMTP-Einstellungen** („Custom SMTP“) einen eigenen E-Mail-Dienst eintragen (z. B. Resend oder Brevo, beide mit Gratis-Kontingent).
-- **Pausierung:** Kostenlose Supabase-Projekte werden nach ca. 1 Woche **ohne Aktivität pausiert**. Im Dashboard mit einem Klick auf „Restore“ wieder aktivieren.
-- **Eigene Domain:** In Vercel unter **Settings → Domains** (z. B. `rainbucks.de`). Danach die Domain auch in Supabase unter *URL Configuration* eintragen.
+Danach hat die Seite eine öffentliche URL wie `https://rainbucks.vercel.app`.
 
 ---
 
-## Befehle im Überblick
-
-| Befehl | Wirkung |
-|---|---|
-| `npm install` | Abhängigkeiten installieren |
-| `npm run dev` | Entwicklungsserver auf http://localhost:3000 |
-| `npm run build` | Produktions-Build erstellen (so wie Vercel es macht) |
-| `npm run lint` | Code auf Fehler prüfen |
-
-## Häufige Probleme
+## Häufige Probleme (lokal)
 
 | Problem | Lösung |
 |---|---|
-| `Your project's URL and Key are required` | `.env.local` fehlt oder ist falsch benannt. Danach `npm run dev` neu starten. Auf Vercel: Environment Variables prüfen und neu deployen. |
-| Bestätigungslink führt zu `localhost` | Phase 4, Schritt 3 (Site URL) erledigen. |
-| „Zu viele Versuche“ bei Registrierung | E-Mail-Limit von Supabase erreicht, siehe „Gut zu wissen“. |
-| Dashboard zeigt E-Mail statt Namen | `schema.sql` wurde nicht (oder erst nach der Registrierung) ausgeführt. SQL ausführen und neu registrieren. |
-| Nach dem Klick auf den Bestätigungslink Fehler „Link ungültig“ | Link im selben Browser öffnen, in dem du dich registriert hast, oder einfach normal einloggen. Das Konto ist oft trotzdem bestätigt. |
+| `npm run db:start` meldet *Cannot connect to the Docker daemon* | Docker Desktop öffnen und warten, bis „Engine running“ angezeigt wird. Dann erneut starten. |
+| `Your project's URL and Key are required` | `.env.local` fehlt. `npm run db:start` ausführen und `npm run dev` neu starten. |
+| Port 3000 ist belegt | Das andere Terminal, in dem `npm run dev` noch läuft, mit `Strg + C` beenden. Die App sollte auf Port 3000 laufen, weil die Bestätigungslinks dorthin zeigen. |
+| Port 54321/54322 ist belegt | Ein anderes Supabase-Projekt läuft noch: `npx supabase stop --all`. |
+| Keine Bestätigungs-Mail | Mails werden lokal **nicht** verschickt. Sie liegen in Mailpit: http://127.0.0.1:54324 |
+| Dashboard zeigt E-Mail statt Namen | `npm run db:reset` ausführen (legt die Tabellen neu an) und neu registrieren. |
