@@ -1,6 +1,5 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { Header } from "@/components/header";
+import type { Metadata, Viewport } from "next";
+import { Chakra_Petch, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,24 +12,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const chakraPetch = Chakra_Petch({
+  variable: "--font-chakra",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+});
+
 export const metadata: Metadata = {
-  title: "Rainbucks",
-  description: "Registrieren, einloggen und los geht's.",
+  title: {
+    default: "Rainbucks – Crypto Casino Simulator",
+    template: "%s · Rainbucks",
+  },
+  description:
+    "Demo-Casino mit virtuellem Spielgeld: Crash, Mines, Limbo und Plinko. Provably Fair, kein echtes Geld.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  colorScheme: "dark",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="de"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${chakraPetch.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col font-sans">
-        <Header />
-        <main className="flex flex-1 flex-col">{children}</main>
-        <footer className="border-t border-slate-200 py-6 text-center text-sm text-slate-500">
-          © {new Date().getFullYear()} Rainbucks
-        </footer>
-      </body>
+      <body className="min-h-full bg-oled font-sans text-zinc-200">{children}</body>
     </html>
   );
 }

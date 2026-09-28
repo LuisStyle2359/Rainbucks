@@ -51,7 +51,7 @@ export async function register(
 
   // Ist "Confirm email" in Supabase ausgeschaltet, ist man sofort eingeloggt.
   if (data.session) {
-    redirect("/dashboard");
+    redirect("/casino");
   }
 
   return {
@@ -79,7 +79,7 @@ export async function login(
     return { error: translateAuthError(error.code, error.message), fields };
   }
 
-  redirect("/dashboard");
+  redirect("/casino");
 }
 
 export async function logout() {

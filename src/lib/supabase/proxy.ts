@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Seiten, die nur eingeloggte Nutzer sehen dürfen.
-const PROTECTED_ROUTES = ["/dashboard"];
+const PROTECTED_ROUTES = ["/dashboard", "/casino"];
 // Seiten, die eingeloggte Nutzer nicht mehr brauchen.
 const AUTH_ROUTES = ["/login", "/register"];
 
@@ -55,7 +55,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isLoggedIn && AUTH_ROUTES.some((route) => path.startsWith(route))) {
-    return redirectTo("/dashboard");
+    return redirectTo("/casino");
   }
 
   return response;
