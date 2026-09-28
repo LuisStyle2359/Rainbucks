@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createSafeStorage } from "./safe-storage";
 import type { BetDetails } from "@/lib/casino/games";
 import { calculatePayout, STARTING_BALANCE } from "@/lib/casino/money";
 import type { PublicSeeds } from "@/lib/fairness/provably-fair";
@@ -121,7 +122,7 @@ export const useWalletStore = create<WalletState>()(
     {
       // Der Name wird pro Nutzer gesetzt, siehe hydratePlayerStores().
       name: "rainbucks:wallet",
-      storage: createJSONStorage(() => localStorage),
+      storage: createSafeStorage(),
       skipHydration: true,
       version: 1,
       partialize: ({ balance, history, stats, refills }) => ({ balance, history, stats, refills }),

@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "motion/react";
-import Link from "next/link";
+import type { ComponentType, ReactNode } from "react";
 import { LiveFeed } from "@/components/casino/shell/live-feed";
 import { Coin } from "@/components/casino/ui/coin";
 import { GAME_ICONS } from "@/components/casino/ui/icons";
 import { audio } from "@/lib/audio/audio-engine";
-import { GAME_IDS, GAMES } from "@/lib/casino/games";
+import { GAME_IDS, GAMES, type GameId } from "@/lib/casino/games";
 import { formatAmount, formatMultiplier, formatSignedAmount } from "@/lib/casino/money";
 import { cn } from "@/lib/cn";
 import { useLiveStore } from "@/lib/stores/live-store";
@@ -22,7 +22,18 @@ const item = {
   show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 28 } },
 };
 
-export function Lobby() {
+/** Link-Komponente von außen: next/link in der App, einfache Anker in der Demo. */
+export type LobbyLink = ComponentType<{
+  href: string;
+  className?: string;
+  onClick?: () => void;
+  onPointerEnter?: () => void;
+  children: ReactNode;
+}>;
+
+export type LobbyTarget = GameId | "fairness";
+
+export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: LobbyTarget) => string }) {
   const name = useLiveStore((s) => s.me?.name ?? "Spieler");
   const balance = useWalletStore((s) => s.balance);
   const stats = useWalletStore((s) => s.stats);
@@ -57,14 +68,14 @@ export function Lobby() {
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
-              href="/casino/crash"
+              href={hrefFor("crash")}
               onClick={() => audio.play("bet")}
               className="inline-flex h-12 items-center gap-2 rounded-xl bg-toxic px-6 font-display text-sm font-bold uppercase tracking-wider text-black shadow-glow-toxic transition hover:-translate-y-0.5"
             >
               Crash starten
             </Link>
             <Link
-              href="/casino/fairness"
+              href={hrefFor("fairness")}
               className="glass inline-flex h-12 items-center rounded-xl px-6 text-sm font-medium text-zinc-200 transition hover:border-toxic/40 hover:text-white"
             >
               Wie ist das fair?
@@ -96,7 +107,7 @@ export function Lobby() {
             return (
               <motion.div key={id} whileHover={{ y: -6 }} transition={{ type: "spring", stiffness: 400, damping: 26 }}>
                 <Link
-                  href={game.href}
+                  href={hrefFor(id)}
                   onClick={() => audio.play("click")}
                   onPointerEnter={() => audio.play("hover")}
                   className="glass glass-edge group block overflow-hidden rounded-2xl transition-shadow hover:shadow-glow-toxic"

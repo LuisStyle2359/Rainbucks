@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createSafeStorage } from "./safe-storage";
 import { ProvablyFair, type PublicSeeds, type SeedPair } from "@/lib/fairness/provably-fair";
 
 const REVEALED_LIMIT = 20;
@@ -78,7 +79,7 @@ export const useFairnessStore = create<FairnessState>()(
     }),
     {
       name: "rainbucks:fairness",
-      storage: createJSONStorage(() => localStorage),
+      storage: createSafeStorage(),
       skipHydration: true,
       version: 1,
       partialize: ({ serverSeed, serverSeedHash, clientSeed, nonce, revealed }) => ({

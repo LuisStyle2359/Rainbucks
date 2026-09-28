@@ -1,0 +1,23 @@
+@import "../src/app/globals.css";
+
+/* Schriften kommen hier von Google Fonts statt von next/font */
+:root {
+  --font-geist-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-chakra: "Chakra Petch", "Geist", ui-sans-serif, sans-serif;
+  color-scheme: dark;
+}
+
+/* Außerhalb der Tailwind-Layer, damit fremde Basis-Styles der Einbettung nicht gewinnen */
+html,
+body {
+  background: #000;
+  color: #e8eaef;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}

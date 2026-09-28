@@ -11,7 +11,8 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:status": "supabase status",
-    "test": "vitest run"
+    "test": "vitest run",
+    "demo:build": "vite build --config demo/vite.config.mts"
   },
   "dependencies": {
     "@noble/hashes": "^2.4.0",

@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
+import { persist } from "zustand/middleware";
+import { createSafeStorage } from "./safe-storage";
 import type { GameId } from "@/lib/casino/games";
 
 interface SettingsData {
@@ -44,7 +45,7 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "rainbucks:settings",
-      storage: createJSONStorage(() => localStorage),
+      storage: createSafeStorage(),
       skipHydration: true,
       version: 1,
       partialize: ({ muted, volume, turbo, livePanelOpen, betAmounts }) => ({

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Lobby } from "@/components/casino/lobby/lobby";
+import { LobbyPage as LobbyView } from "@/components/casino/lobby/lobby-page";
 
 export const metadata: Metadata = { title: "Lobby" };
 
 export default function LobbyPage() {
-  return <Lobby />;
+  return <LobbyView />;
 }
