@@ -29,7 +29,14 @@ const createSettingsData = (): SettingsData => ({
   volume: 0.7,
   turbo: false,
   livePanelOpen: true,
-  betAmounts: { crash: DEFAULT_BET, mines: DEFAULT_BET, limbo: DEFAULT_BET, plinko: DEFAULT_BET },
+  betAmounts: {
+    crash: DEFAULT_BET,
+    mines: DEFAULT_BET,
+    limbo: DEFAULT_BET,
+    plinko: DEFAULT_BET,
+    blackjack: DEFAULT_BET,
+    roulette: DEFAULT_BET,
+  },
 });
 
 export const useSettingsStore = create<SettingsState>()(

@@ -48,13 +48,22 @@ export type VerifyParams =
   | { game: "crash" }
   | { game: "limbo" }
   | { game: "mines"; mines: number }
-  | { game: "plinko"; rows: number };
+  | { game: "plinko"; rows: number }
+  | { game: "roulette" }
+  | { game: "blackjack" };
 
 export type VerifyOutcome =
   | { game: "crash"; crashPoint: number }
   | { game: "limbo"; result: number }
   | { game: "mines"; minePositions: number[] }
-  | { game: "plinko"; path: PlinkoStep[]; bin: number };
+  | { game: "plinko"; path: PlinkoStep[]; bin: number }
+  | { game: "roulette"; result: number }
+  | { game: "blackjack"; cards: number[] };
+
+/** European roulette: 0 … 36. */
+export const ROULETTE_POCKETS = 37;
+/** Cards shown when verifying a blackjack round (the deal is drawn from this stream). */
+export const BLACKJACK_VERIFY_CARDS = 12;
 
 export interface VerifyResult {
   serverSeedHash: string;
@@ -172,6 +181,20 @@ export class ProvablyFair {
     return path.reduce<number>((bin, step) => bin + (step === 1 ? 1 : 0), 0);
   }
 
+  /** European roulette pocket the ball lands in (0 … 36). */
+  static rouletteResult(seeds: SeedPair): number {
+    return Math.min(ROULETTE_POCKETS - 1, Math.floor(ProvablyFair.float(seeds) * ROULETTE_POCKETS));
+  }
+
+  /**
+   * Card stream for blackjack. Each card is an index 0 … 51 (rank = index % 13,
+   * suit = index / 13), drawn independently (infinite shoe) so any hand length
+   * stays verifiable. The game consumes cards from the front in deal order.
+   */
+  static blackjackCards(seeds: SeedPair, count: number): number[] {
+    return ProvablyFair.floats(seeds, count).map((f) => Math.min(51, Math.floor(f * 52)));
+  }
+
   // ---------------------------------------------------------------------------
   // Verification
   // ---------------------------------------------------------------------------
@@ -201,6 +224,10 @@ export class ProvablyFair {
         const path = ProvablyFair.plinkoPath(seeds, params.rows);
         return { game: "plinko", path, bin: ProvablyFair.plinkoBin(path) };
       }
+      case "roulette":
+        return { game: "roulette", result: ProvablyFair.rouletteResult(seeds) };
+      case "blackjack":
+        return { game: "blackjack", cards: ProvablyFair.blackjackCards(seeds, BLACKJACK_VERIFY_CARDS) };
     }
   }
 }

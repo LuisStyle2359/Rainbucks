@@ -31,6 +31,10 @@ function betDetails(bet: BetRecord): string {
       return `${bet.mines} mine${bet.mines === 1 ? "" : "s"} · ${bet.revealed} gem${bet.revealed === 1 ? "" : "s"}`;
     case "plinko":
       return `${bet.rows} rows · ${PLINKO_RISKS.find((r) => r.id === bet.risk)?.label} risk · slot ${bet.bin}`;
+    case "blackjack":
+      return `You ${bet.playerTotal} vs dealer ${bet.dealerTotal} · ${bet.result}${bet.doubled ? " · doubled" : ""}`;
+    case "roulette":
+      return `Landed on ${bet.result} · ${bet.bets} bet${bet.bets === 1 ? "" : "s"}`;
   }
 }
 

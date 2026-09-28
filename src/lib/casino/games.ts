@@ -1,4 +1,4 @@
-export type GameId = "crash" | "mines" | "limbo" | "plinko";
+export type GameId = "crash" | "mines" | "limbo" | "plinko" | "blackjack" | "roulette";
 
 export type PlinkoRisk = "low" | "medium" | "high";
 
@@ -45,6 +45,22 @@ export const GAMES: Record<GameId, GameInfo> = {
     description: "Balls bounce off pins and drop into multiplier slots.",
     badge: "Physics",
   },
+  blackjack: {
+    id: "blackjack",
+    name: "Blackjack",
+    href: "/casino/blackjack",
+    tagline: "Beat the dealer without busting.",
+    description: "Hit, stand or double down. Get closer to 21 than the dealer.",
+    badge: "Cards",
+  },
+  roulette: {
+    id: "roulette",
+    name: "Roulette",
+    href: "/casino/roulette",
+    tagline: "Place your chips, spin the wheel.",
+    description: "European single-zero wheel. Numbers, colors, dozens and more.",
+    badge: "Table",
+  },
 };
 
 export const GAME_IDS = Object.keys(GAMES) as GameId[];
@@ -59,4 +75,9 @@ export type BetDetails =
     }
   | { game: "limbo"; target: number; result: number }
   | { game: "mines"; mines: number; revealed: number }
-  | { game: "plinko"; rows: number; risk: PlinkoRisk; bin: number };
+  | { game: "plinko"; rows: number; risk: PlinkoRisk; bin: number }
+  | { game: "blackjack"; playerTotal: number; dealerTotal: number; result: BlackjackResult; doubled: boolean }
+  | { game: "roulette"; result: number; bets: number };
+
+/** How a blackjack round ended. */
+export type BlackjackResult = "blackjack" | "win" | "push" | "lose";

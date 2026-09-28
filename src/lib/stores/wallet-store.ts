@@ -22,7 +22,14 @@ export type BetRecord = {
 // Omit that keeps the per-game union intact.
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
-export type SettleInput = DistributiveOmit<BetRecord, "id" | "createdAt" | "payout">;
+export type SettleInput = DistributiveOmit<BetRecord, "id" | "createdAt" | "payout"> & {
+  /**
+   * Exact payout in cents. When omitted it is computed from amount × multiplier.
+   * Games that combine several bets in one round (e.g. roulette) pass it so the
+   * credited amount stays cent-exact instead of losing sub-cent truncation.
+   */
+  payout?: number;
+};
 
 export interface WalletStats {
   bets: number;
@@ -95,7 +102,7 @@ export const useWalletStore = create<WalletState>()(
       },
 
       settle: (input) => {
-        const payout = calculatePayout(input.amount, input.multiplier);
+        const payout = input.payout ?? calculatePayout(input.amount, input.multiplier);
         const record = {
           ...input,
           id: createBetId(),

@@ -128,9 +128,27 @@ export const TrophyIcon = (props: IconProps) => (
   </svg>
 );
 
+export const BlackjackIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <rect x="4" y="6" width="11" height="14" rx="2" transform="rotate(-8 9.5 13)" />
+    <rect x="10" y="5" width="11" height="14" rx="2" transform="rotate(8 15.5 12)" />
+    <path d="M15 9c-1.3 1-2 2-2 3 0 1 .9 1.6 2 1.6s2-.6 2-1.6c0-1-.7-2-2-3ZM15 13.6V16" />
+  </svg>
+);
+
+export const RouletteIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+  </svg>
+);
+
 export const GAME_ICONS: Record<GameId, (props: IconProps) => JSX.Element> = {
   crash: RocketIcon,
   mines: GemIconLine,
   limbo: TargetIcon,
   plinko: PlinkoIcon,
+  blackjack: BlackjackIcon,
+  roulette: RouletteIcon,
 };

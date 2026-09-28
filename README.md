@@ -1,6 +1,6 @@
 # Rainbucks – Crypto Casino Simulator
 
-Ultra-modern casino web app in an **OLED dark × cyberpunk neon** look with four games: **Crash, Mines, Limbo and Plinko**. Provably fair system, sound design, win celebrations, VIP levels, a free bonus wheel, live chat and sign-up/login.
+Ultra-modern casino web app in an **OLED dark × cyberpunk neon** look with six games: **Crash, Mines, Limbo, Plinko, Blackjack and Roulette**. Provably fair system, sound design, win celebrations, VIP levels, a free bonus wheel, live chat and sign-up/login.
 
 > **Important:** Rainbucks is a **portfolio project and a pure demo simulator**. You only ever play with virtual play money (**RBX**). There are no deposits, no withdrawals and no real-money value.
 
@@ -54,7 +54,7 @@ Then sign up on http://localhost:3000, open the confirmation email in Mailpit (h
 | Sound | **Web Audio API** | Every sound synthesized live, no audio files |
 | Realtime | Simulated socket (Socket.io API) | Live chat and bet feed with bots |
 | Auth + DB | **Supabase** (Auth, Postgres, RLS) | Sign-up, login, hashed passwords |
-| Tests | **Vitest** | 38 unit tests |
+| Tests | **Vitest** | 47 unit tests |
 
 ---
 
@@ -159,6 +159,8 @@ float = b0/256 + b1/256² + b2/256³ + b3/256⁴          → 0 ≤ float < 1
 Crash / Limbo: max(1, floor(0.99 / (1 − float) · 100) / 100)   → P(≥ x) = 0.99 / x
 Mines:         Fisher-Yates shuffle of the 25 tiles
 Plinko:        per row float < 0.5 → left, otherwise right
+Roulette:      pocket = floor(float · 37)                       → 0 … 36 (single zero)
+Blackjack:     card i = floor(float_i · 52)                     → infinite shoe, deal order
 ```
 
 1. Before a bet only the **SHA-256 hash** of the server seed is visible.
@@ -183,6 +185,11 @@ Files: [`celebration-layer.tsx`](src/components/casino/celebrations/celebration-
 - **Limbo** ([`limbo-game.tsx`](src/components/games/limbo/limbo-game.tsx)): huge numbers roll like slot machine reels ([`odometer.tsx`](src/components/games/limbo/odometer.tsx)) with motion blur that follows the spin speed. A hit punches the number and sends out a shockwave. Target via input, logarithmic slider or win chance (2.00× ↔ 49.5%).
 - **Plinko** ([`plinko-physics.ts`](src/lib/games/plinko/plinko-physics.ts)): real matter.js physics with a fixed timestep (120 Hz). To still get the fair result, every ball gets a small nudge before each row towards an aim point next to the next pin; the bounce itself is left to the physics. In tests **3,700 of 3,700 balls** landed in the right slot (8–16 rows, 30 balls at once, fluctuating frame rate). Balls glow in four neon colors, wins float up from the slot, slots go from red to green, **27 payout tables** (8–16 rows × 3 risk levels) with 98.4–99.0% RTP.
 
+## Blackjack and Roulette
+
+- **Blackjack** ([`blackjack-game.ts`](src/lib/games/blackjack/blackjack-game.ts)): hit, stand or double down against a dealer who stands on all 17s. Blackjack pays 3:2. Cards are dealt from a provably-fair stream (`card = floor(float · 52)`, an infinite shoe) so any hand length stays verifiable; the fairness page shows the exact deal order.
+- **Roulette** ([`roulette-math.ts`](src/lib/games/roulette/roulette-math.ts)): a European single-zero wheel (`pocket = floor(float · 37)`). Place chips on straight numbers (35:1), dozens and columns (2:1) or the even-money bets (red/black, even/odd, 1–18/19–36), then spin the animated wheel. Several bets settle together with a cent-exact payout, so the credited amount never drifts from the sum of the winning bets.
+
 ## More systems
 
 - **Bet panel** ([`bet-panel.tsx`](src/components/casino/bet-panel/bet-panel.tsx)): amount, ½, 2×, Max, manual/auto (number of bets, stop on profit/loss). **Space** = bet / cash out. On phones a **sticky bottom bar** whose settings slide up. The main button breathes and has a light sweep.
@@ -204,7 +211,7 @@ Files: [`celebration-layer.tsx`](src/components/casino/celebrations/celebration-
 npm test
 ```
 
-38 tests: HMAC against Node `crypto`, distribution (2× in ~49.5%), mine positions, all 27 Plinko tables (length, symmetry, RTP), Mines RTP for every combination, exact cent math, Crash engine (auto cashout, crash, manual cashout, refund), Plinko physics, VIP levels, the bonus wheel's equal odds and the coin/balance sync.
+47 tests: HMAC against Node `crypto`, distribution (2× in ~49.5%), mine positions, all 27 Plinko tables (length, symmetry, RTP), Mines RTP for every combination, exact cent math, Crash engine (auto cashout, crash, manual cashout, refund), Plinko physics, VIP levels, the bonus wheel's equal odds, the coin/balance sync, roulette payouts and house edge, and blackjack hand values and rounds.
 
 ---
 

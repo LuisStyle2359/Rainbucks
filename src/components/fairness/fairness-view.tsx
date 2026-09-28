@@ -8,6 +8,7 @@ import { audio } from "@/lib/audio/audio-engine";
 import type { PlinkoRisk } from "@/lib/casino/games";
 import { formatMultiplier } from "@/lib/casino/money";
 import { cn } from "@/lib/cn";
+import { rouletteColor } from "@/lib/games/roulette/roulette-math";
 import { ProvablyFair, type VerifyParams, type VerifyResult } from "@/lib/fairness/provably-fair";
 import { PLINKO_RISKS, isPlinkoRows, plinkoMultiplier } from "@/lib/games/plinko/payouts";
 import { useFairnessStore } from "@/lib/stores/fairness-store";
@@ -29,7 +30,12 @@ const GAME_OPTIONS = [
   { value: "limbo", label: "Limbo" },
   { value: "mines", label: "Mines" },
   { value: "plinko", label: "Plinko" },
+  { value: "blackjack", label: "Blackjack" },
+  { value: "roulette", label: "Roulette" },
 ] as const satisfies readonly { value: VerifyGame; label: string }[];
+
+const CARD_RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const CARD_SUITS = ["♠", "♥", "♦", "♣"];
 
 export function FairnessView({ prefill }: { prefill: VerifyPrefill }) {
   return (
@@ -333,6 +339,33 @@ function VerifyOutput({ result, risk }: { result: VerifyResult; risk: PlinkoRisk
                 : "–"
             }
           />
+        </div>
+      )}
+      {outcome.game === "roulette" && (
+        <div className="flex items-center gap-3">
+          <BigValue label={`Pocket · ${rouletteColor(outcome.result)}`} value={String(outcome.result)} />
+        </div>
+      )}
+      {outcome.game === "blackjack" && (
+        <div>
+          <p className="mb-2 text-[11px] uppercase tracking-widest text-zinc-500">Card sequence (deal order)</p>
+          <div className="flex flex-wrap gap-1.5">
+            {outcome.cards.map((card, i) => {
+              const red = Math.floor(card / 13) === 1 || Math.floor(card / 13) === 2;
+              return (
+                <span
+                  key={i}
+                  className={cn(
+                    "grid h-9 w-7 place-items-center rounded-md border border-black/10 bg-white font-mono text-xs font-bold",
+                    red ? "text-neon-red" : "text-zinc-900",
+                  )}
+                >
+                  {CARD_RANKS[card % 13]}
+                  {CARD_SUITS[Math.floor(card / 13)]}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

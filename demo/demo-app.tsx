@@ -11,11 +11,13 @@ import { useCasinoRuntime } from "@/components/casino/shell/use-casino-runtime";
 import { GAME_ICONS, HomeIcon, ShieldIcon } from "@/components/casino/ui/icons";
 import { LevelBadge } from "@/components/casino/vip/level-badge";
 import { FairnessView } from "@/components/fairness/fairness-view";
+import { BlackjackGameView } from "@/components/games/blackjack/blackjack-game";
 import { CrashGame } from "@/components/games/crash/crash-game";
 import { GameHeader } from "@/components/games/game-header";
 import { LimboGame } from "@/components/games/limbo/limbo-game";
 import { MinesGameView } from "@/components/games/mines/mines-game";
 import { PlinkoGame } from "@/components/games/plinko/plinko-game";
+import { RouletteGame } from "@/components/games/roulette/roulette-game";
 import { audio } from "@/lib/audio/audio-engine";
 import { GAME_IDS, GAMES } from "@/lib/casino/games";
 import { cn } from "@/lib/cn";
@@ -129,6 +131,20 @@ function ViewContent({ view }: { view: View }) {
         <>
           <GameHeader game="plinko" />
           <PlinkoGame />
+        </>
+      );
+    case "blackjack":
+      return (
+        <>
+          <GameHeader game="blackjack" />
+          <BlackjackGameView />
+        </>
+      );
+    case "roulette":
+      return (
+        <>
+          <GameHeader game="roulette" />
+          <RouletteGame />
         </>
       );
     case "fairness":

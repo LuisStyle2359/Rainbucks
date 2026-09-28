@@ -132,7 +132,14 @@ export function botReplyTo(text: string, author: ChatUser): ChatMessage | null {
 // Simulated bets of other players
 // ---------------------------------------------------------------------------
 
-const GAME_WEIGHTS: Record<GameId, number> = { crash: 0.3, limbo: 0.25, mines: 0.25, plinko: 0.2 };
+const GAME_WEIGHTS: Record<GameId, number> = {
+  crash: 0.24,
+  limbo: 0.18,
+  mines: 0.18,
+  plinko: 0.16,
+  blackjack: 0.12,
+  roulette: 0.12,
+};
 const TARGETS = [1.2, 1.5, 2, 2, 2, 3, 5, 10, 20, 50, 100];
 
 function randomGame(): GameId {
@@ -162,6 +169,19 @@ function simulateMultiplier(game: GameId): number {
       let bin = 0;
       for (let row = 0; row < rows; row++) bin += Math.random() < 0.5 ? 0 : 1;
       return plinkoMultiplier(rows, risk, bin);
+    }
+    case "blackjack": {
+      const r = Math.random();
+      if (r < 0.44) return 0; // lose
+      if (r < 0.53) return 1; // push
+      if (r < 0.97) return 2; // win
+      return 2.5; // blackjack
+    }
+    case "roulette": {
+      const bet = Math.random();
+      if (bet < 0.5) return Math.random() < 18 / 37 ? 2 : 0; // even money
+      if (bet < 0.85) return Math.random() < 12 / 37 ? 3 : 0; // dozen / column
+      return Math.random() < 1 / 37 ? 36 : 0; // straight up
     }
   }
 }
