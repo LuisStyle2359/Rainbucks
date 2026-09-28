@@ -6,7 +6,7 @@ import type { GameId } from "@/lib/casino/games";
 interface SettingsData {
   muted: boolean;
   volume: number;
-  /** Schnellere Animationen (z. B. Limbo-Roll, Mines-Auto). */
+  /** Faster animations (e.g. Limbo roll, Mines auto). */
   turbo: boolean;
   livePanelOpen: boolean;
   betAmounts: Record<GameId, number>;
@@ -67,17 +67,21 @@ export const useSettingsStore = create<SettingsState>()(
   ),
 );
 
-/** Nicht gespeicherter UI-Zustand. */
+/** UI state that is not persisted. */
 interface UiState {
   activeGame: GameId | null;
   mobileLiveOpen: boolean;
+  bonusWheelOpen: boolean;
   setActiveGame: (game: GameId | null) => void;
   setMobileLiveOpen: (open: boolean) => void;
+  setBonusWheelOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()((set) => ({
   activeGame: null,
   mobileLiveOpen: false,
+  bonusWheelOpen: false,
   setActiveGame: (activeGame) => set({ activeGame }),
   setMobileLiveOpen: (mobileLiveOpen) => set({ mobileLiveOpen }),
+  setBonusWheelOpen: (bonusWheelOpen) => set({ bonusWheelOpen }),
 }));

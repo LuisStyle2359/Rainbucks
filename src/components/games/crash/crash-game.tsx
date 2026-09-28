@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { BetPanel, type BetAction, type BetMode } from "@/components/casino/bet-panel/bet-panel";
 import { useAutoBet } from "@/components/casino/bet-panel/use-auto-bet";
 import { DecimalField, formatTwoDecimals } from "@/components/casino/ui/decimal-field";
-import { audio, type TensionVoice } from "@/lib/audio/audio-engine";
+import { audio, vibrate, type TensionVoice } from "@/lib/audio/audio-engine";
 import { placeBet, refundBet, settleBet } from "@/lib/casino/bets";
 import { calculatePayout, floorMultiplier, formatAmount, formatMultiplier, formatPercent } from "@/lib/casino/money";
 import { CrashEngine, type CrashEvent, type CrashPhase } from "@/lib/games/crash/crash-engine";
@@ -26,10 +26,16 @@ function playCrashSound(event: CrashEvent): void {
       audio.play("explosion", { volume: event.hadBet ? 1 : 0.4 });
       break;
     case "cashout":
+      // Big-win fanfares come from the celebration layer
       audio.play("cashout");
-      if (event.multiplier >= 10) audio.play("bigWin");
       break;
   }
+}
+
+/** Every milestone (2×, 3×, 5×, 10×, …) chimes a little higher. */
+function playMilestone(milestone: number): void {
+  audio.play("milestone", { pitch: 1 + Math.min(0.6, Math.log10(milestone) * 0.2) });
+  vibrate(12);
 }
 
 function createEngine(): CrashEngine {
@@ -46,9 +52,9 @@ function createEngine(): CrashEngine {
 }
 
 const PHASE_TEXT: Record<CrashPhase, string> = {
-  betting: "Einsätze offen",
-  running: "Runde läuft",
-  crashed: "Gecrasht",
+  betting: "Bets open",
+  running: "Round running",
+  crashed: "Crashed",
 };
 
 export function CrashGame() {
@@ -75,8 +81,8 @@ export function CrashGame() {
     };
   }, []);
 
-  // Läuft in jedem Frame: Cashout-Betrag live aktualisieren, Spannungs-Sound steuern.
-  // Direkter DOM-Zugriff statt React-State → keine 120 Re-Renders pro Sekunde.
+  // Runs every frame: update the live cashout amount and drive the tension sound.
+  // Direct DOM access instead of React state → no 120 re-renders per second.
   const onFrame = useCallback(
     (multiplier: number, phase: CrashPhase) => {
       const myBet = engine.getSnapshot().myBet;
@@ -108,21 +114,21 @@ export function CrashGame() {
   let action: BetAction;
   if (phase === "running" && myBet?.status === "active") {
     action = {
-      label: "Auszahlen",
+      label: "Cash out",
       variant: "cashout",
       sublabel: <span ref={cashoutLabelRef}>{formatAmount(myBet.amount)} RBX</span>,
       onClick: () => engine.cashOut(),
     };
   } else if (queuedBet || (phase === "betting" && myBet?.status === "waiting")) {
     action = {
-      label: "Abbrechen",
-      sublabel: queuedBet ? "Wette für die nächste Runde" : "Wette platziert, Start gleich",
+      label: "Cancel",
+      sublabel: queuedBet ? "Bet queued for the next round" : "Bet placed, starting soon",
       variant: "ghost",
       onClick: () => engine.cancelBet(),
     };
   } else {
     action = {
-      label: phase === "betting" ? "Wetten" : "Nächste Runde wetten",
+      label: phase === "betting" ? "Bet" : "Bet next round",
       variant: "bet",
       onClick: () => {
         if (!engine.placeBet(amount, autoCashout)) audio.play("lose");
@@ -141,20 +147,20 @@ export function CrashGame() {
         action={action}
         auto={auto}
         autoStartDisabled={autoCashout === null}
-        autoHint="Setzt jede Runde automatisch und steigt beim Auto-Cashout aus."
+        autoHint="Bets every round and cashes out at your auto cashout."
         locked={locked}
-        summary={autoCashout ? `Auto-Cashout ${formatMultiplier(autoCashout)}` : "Manueller Cashout"}
+        summary={autoCashout ? `Auto cashout ${formatMultiplier(autoCashout)}` : "Manual cashout"}
       >
         <DecimalField
           id="crash-auto-cashout"
-          label="Auto-Cashout"
-          hint={autoCashout ? `Chance ${formatPercent(limboWinChance(autoCashout))}` : "aus"}
+          label="Auto cashout"
+          hint={autoCashout ? `Chance ${formatPercent(limboWinChance(autoCashout))}` : "off"}
           value={autoCashout}
           onChange={setAutoCashout}
           format={formatTwoDecimals}
           normalize={clampTarget}
           suffix="×"
-          placeholder="aus"
+          placeholder="off"
           allowEmpty={mode === "manual"}
           disabled={locked || auto.running}
         />
@@ -162,11 +168,16 @@ export function CrashGame() {
 
       <section className="flex min-w-0 flex-col gap-4">
         <CrashHistory history={snapshot.history} />
-        <div className="glass glass-edge relative overflow-hidden rounded-2xl">
-          <CrashCanvas engine={engine} onFrame={onFrame} className="aspect-[4/3] sm:aspect-[16/10]" />
+        <div data-game-stage className="glass glass-edge relative overflow-hidden rounded-2xl">
+          <CrashCanvas
+            engine={engine}
+            onFrame={onFrame}
+            onMilestone={playMilestone}
+            className="aspect-[4/3] sm:aspect-[16/10]"
+          />
           <p className="sr-only" aria-live="polite">
             {PHASE_TEXT[phase]}
-            {phase === "crashed" && snapshot.crashPoint ? ` bei ${formatMultiplier(snapshot.crashPoint)}` : ""}
+            {phase === "crashed" && snapshot.crashPoint ? ` at ${formatMultiplier(snapshot.crashPoint)}` : ""}
           </p>
         </div>
         <CrashPlayers snapshot={snapshot} />

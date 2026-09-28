@@ -2,7 +2,7 @@ import type { GameId } from "@/lib/casino/games";
 
 export interface ChatUser {
   name: string;
-  /** Farbe für Avatar und Namen */
+  /** Color for avatar and name */
   color: string;
   level: number;
   isYou?: boolean;
@@ -19,22 +19,22 @@ export interface LiveBet {
   id: string;
   user: ChatUser;
   game: GameId;
-  /** Einsatz in Cent */
+  /** Stake in cents */
   amount: number;
   multiplier: number;
-  /** Auszahlung in Cent (0 bei Verlust) */
+  /** Payout in cents (0 on a loss) */
   payout: number;
   createdAt: number;
 }
 
-/** Events vom (simulierten) Server an den Client – wie bei Socket.io typisiert. */
+/** Events from the (simulated) server to the client, typed like Socket.io. */
 export interface ServerToClientEvents {
   "chat:message": ChatMessage;
   "bets:new": LiveBet;
   "presence:update": { online: number };
 }
 
-/** Events vom Client an den Server. */
+/** Events from the client to the server. */
 export interface ClientToServerEvents {
   "chat:send": { user: ChatUser; text: string };
   "bets:publish": LiveBet;

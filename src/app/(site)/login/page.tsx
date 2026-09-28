@@ -6,16 +6,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { error } = await searchParams;
   const initialError =
     error === "confirm"
-      ? "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte versuche es erneut."
+      ? "The confirmation link is invalid or has expired. Please try again."
       : undefined;
 
   return (
-    <AuthCard title="Willkommen zurück" subtitle="Logge dich in dein Konto ein.">
+    <AuthCard title="Welcome back" subtitle="Log in to your account.">
       <LoginForm initialError={initialError} />
       <p className="mt-6 text-center text-sm text-zinc-400">
-        Noch kein Konto?{" "}
+        No account yet?{" "}
         <Link href="/register" className="font-semibold text-toxic hover:underline">
-          Jetzt registrieren
+          Sign up now
         </Link>
       </p>
     </AuthCard>

@@ -1,22 +1,24 @@
-// Alle Beträge werden als ganze Cent (Integer) gespeichert.
-// So entstehen keine Rundungsfehler wie 0.1 + 0.2 = 0.30000000000000004.
+// All amounts are stored as integer cents.
+// That avoids floating point drift like 0.1 + 0.2 = 0.30000000000000004.
 
 export const CURRENCY = "RBX";
-export const STARTING_BALANCE = 1_000_00; // 1.000,00 RBX
-export const MIN_BET = 1; // 0,01 RBX
-export const MAX_BET = 1_000_000_00; // 1.000.000,00 RBX
+export const STARTING_BALANCE = 1_000_00; // 1,000.00 RBX
+export const MIN_BET = 1; // 0.01 RBX
+export const MAX_BET = 1_000_000_00; // 1,000,000.00 RBX
 
-const amountFormat = new Intl.NumberFormat("de-DE", {
+const LOCALE = "en-US";
+
+const amountFormat = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-const compactFormat = new Intl.NumberFormat("de-DE", {
+const compactFormat = new Intl.NumberFormat(LOCALE, {
   notation: "compact",
   maximumFractionDigits: 1,
 });
 
-const multiplierFormat = new Intl.NumberFormat("de-DE", {
+const multiplierFormat = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
@@ -40,23 +42,39 @@ export function formatMultiplier(multiplier: number): string {
   return `${multiplierFormat.format(multiplier)}×`;
 }
 
+export function formatNumber(value: number, maximumFractionDigits = 0): string {
+  return value.toLocaleString(LOCALE, { maximumFractionDigits });
+}
+
 export function formatPercent(value: number, digits = 2): string {
-  return `${value.toLocaleString("de-DE", {
+  return `${value.toLocaleString(LOCALE, {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
-  })} %`;
+  })}%`;
 }
 
 /**
- * Liest Eingaben wie "12,5", "12.5" oder "1.234,56".
- * Enthält die Eingabe ein Komma, gilt der Punkt als Tausendertrenner.
+ * Parses user input such as "12.5", "1,234.56", "12,5" or "1.234,56".
+ * With both separators present, the last one is the decimal separator.
+ * A lone comma counts as a thousands separator only in the "1,000" pattern.
  */
 export function parseDecimalInput(raw: string): number | null {
-  let normalized = raw.trim().replace(/\s|×|x|RBX/gi, "");
-  if (normalized.includes(",")) {
-    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  let normalized = raw.trim().replace(/\s|×|x|%|RBX/gi, "");
+  const lastComma = normalized.lastIndexOf(",");
+  const lastDot = normalized.lastIndexOf(".");
+
+  if (lastComma !== -1 && lastDot !== -1) {
+    normalized =
+      lastComma > lastDot
+        ? normalized.replace(/\./g, "").replace(",", ".")
+        : normalized.replace(/,/g, "");
+  } else if (lastComma !== -1) {
+    normalized = /^\d{1,3}(,\d{3})+$/.test(normalized)
+      ? normalized.replace(/,/g, "")
+      : normalized.replace(",", ".");
   }
-  if (normalized === "" || !/^\d*\.?\d*$/.test(normalized)) return null;
+
+  if (normalized === "" || !/^\d*\.?\d*$/.test(normalized) || normalized === ".") return null;
   const value = Number(normalized);
   return Number.isFinite(value) ? value : null;
 }
@@ -65,14 +83,14 @@ export function toCents(value: number): number {
   return Math.round(value * 100);
 }
 
-/** Schneidet auf 2 Nachkommastellen ab (nie aufrunden, sonst zahlt das Casino zu viel). */
+/** Truncates to 2 decimals (never round up, or the house pays too much). */
 export function floorMultiplier(multiplier: number): number {
   return Math.floor(multiplier * 100 + 1e-9) / 100;
 }
 
 /**
- * Auszahlung = Einsatz × Multiplikator, exakt in Integer-Arithmetik.
- * Der Multiplikator wird auf 2 Nachkommastellen abgeschnitten.
+ * Payout = bet × multiplier, computed exactly with integer arithmetic.
+ * The multiplier is truncated to 2 decimals.
  */
 export function calculatePayout(amount: number, multiplier: number): number {
   if (multiplier <= 0 || amount <= 0) return 0;

@@ -23,7 +23,7 @@ export type BetMode = "manual" | "auto";
 
 export interface BetAction {
   label: string;
-  /** Zweite Zeile im Button, z. B. der aktuelle Cashout-Betrag */
+  /** Second line in the button, e.g. the current cashout amount */
   sublabel?: ReactNode;
   variant: NeonVariant;
   onClick: () => void;
@@ -34,22 +34,22 @@ interface BetPanelProps {
   game: GameId;
   mode: BetMode;
   onModeChange: (mode: BetMode) => void;
-  /** Hauptknopf im manuellen Modus */
+  /** Main button in manual mode */
   action: BetAction;
-  /** Auto-Bet-Steuerung. Fehlt sie, gibt es keinen Auto-Tab. */
+  /** Auto bet controls. Without them there is no Auto tab. */
   auto?: AutoBetControls;
   autoStartDisabled?: boolean;
   autoHint?: ReactNode;
-  /** Einsatz und Einstellungen sperren (Runde läuft) */
+  /** Lock the bet amount and settings (round in progress) */
   locked?: boolean;
-  /** Spielspezifische Einstellungen (Minen, Ziel, Reihen …) */
+  /** Game-specific settings (mines, target, rows …) */
   children?: ReactNode;
-  /** Kurzinfo in der eingeklappten Handy-Leiste */
+  /** Short info in the collapsed mobile bar */
   summary?: ReactNode;
 }
 
 const MODE_OPTIONS = [
-  { value: "manual", label: "Manuell" },
+  { value: "manual", label: "Manual" },
   { value: "auto", label: "Auto" },
 ] as const satisfies readonly { value: BetMode; label: string }[];
 
@@ -78,22 +78,22 @@ export function BetPanel({
     mode === "auto" && auto
       ? autoRunning
         ? {
-            label: "Auto stoppen",
+            label: "Stop auto",
             sublabel: `${auto.played}${auto.rounds ? ` / ${auto.rounds}` : ""} · ${formatSignedAmount(auto.profit)}`,
             variant: "stop",
             onClick: auto.stop,
           }
         : {
-            label: insufficient ? "Guthaben zu niedrig" : "Auto-Bet starten",
+            label: insufficient ? "Balance too low" : "Start auto bet",
             variant: "bet",
             disabled: insufficient || autoStartDisabled,
             onClick: () => auto.start(parseAutoConfig(autoDraft)),
           }
       : action.variant === "bet" && insufficient && !action.disabled
-        ? { ...action, label: "Guthaben zu niedrig", disabled: true }
+        ? { ...action, label: "Balance too low", disabled: true }
         : action;
 
-  // Leertaste = Hauptaktion (Wetten / Cashout), außer beim Tippen in Feldern.
+  // Space = main action (bet / cash out), except while typing in fields.
   const primaryRef = useRef(primary);
   useEffect(() => {
     primaryRef.current = primary;
@@ -124,7 +124,7 @@ export function BetPanel({
   return (
     <aside className="fixed inset-x-0 bottom-0 z-40 lg:sticky lg:top-24 lg:z-auto lg:self-start">
       <div className="glass-strong glass-edge rounded-t-3xl border-b-0 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-2 shadow-[0_-24px_60px_-24px_rgb(0_0_0/0.95)] max-lg:bg-[rgb(6_7_9/0.97)] lg:rounded-2xl lg:border-b lg:p-5 lg:shadow-glow-soft">
-        {/* Griff zum Aufklappen der Einstellungen (nur Handy) */}
+        {/* Handle that expands the settings (mobile only) */}
         <button
           type="button"
           onClick={() => setExpanded((open) => !open)}
@@ -133,14 +133,14 @@ export function BetPanel({
         >
           <span className="h-1 w-10 rounded-full bg-white/20" />
           <span className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-widest text-zinc-500">
-            {summary ?? (mode === "auto" ? "Auto-Bet" : "Manuell")}
+            {summary ?? (mode === "auto" ? "Auto bet" : "Manual")}
             <motion.span animate={{ rotate: expanded ? 180 : 0 }} className="inline-block">
               ▴
             </motion.span>
           </span>
         </button>
 
-        {/* Abstände per padding statt gap: eingeklappte Bereiche (Höhe 0) lassen so keine Lücke */}
+        {/* Spacing via padding instead of gap: collapsed sections (height 0) leave no gap */}
         <div className="flex flex-col">
           {auto && (
             <motion.div className={cn("order-1", collapsible)} {...collapse}>
@@ -221,10 +221,10 @@ function AmountField({
     <div>
       <div className="mb-1.5 flex items-baseline justify-between text-xs text-zinc-500">
         <label htmlFor={`amount-${game}`} className="font-medium uppercase tracking-widest">
-          Einsatz
+          Bet amount
         </label>
         <span className="font-mono">
-          {amount > balance ? <span className="text-neon-red">über Guthaben</span> : `max ${formatAmount(balance)}`}
+          {amount > balance ? <span className="text-neon-red">above balance</span> : `max ${formatAmount(balance)}`}
         </span>
       </div>
       <div className="flex gap-1.5">
@@ -307,10 +307,10 @@ function AutoSettings({
   return (
     <div className="space-y-3 rounded-xl border border-white/[0.06] bg-black/30 p-3">
       {hint && <p className="text-xs text-zinc-400">{hint}</p>}
-      {field("rounds", "Anzahl Wetten", "∞")}
+      {field("rounds", "Number of bets", "∞")}
       <div className="grid grid-cols-2 gap-2">
-        {field("profit", "Stopp bei Gewinn", "–")}
-        {field("loss", "Stopp bei Verlust", "–")}
+        {field("profit", "Stop on profit", "–")}
+        {field("loss", "Stop on loss", "–")}
       </div>
     </div>
   );

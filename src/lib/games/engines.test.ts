@@ -4,7 +4,7 @@ import { CrashEngine, timeForMultiplier, BETTING_MS } from "./crash/crash-engine
 import { MinesGame } from "./mines/mines-game";
 import { PEG_GAP, PlinkoWorld } from "./plinko/plinko-physics";
 
-/** Seed-Paar, das einen bestimmten Crash-Punkt ergibt (per Suche über die Nonce). */
+/** Seed pair that yields a given crash point (found by searching over the nonce). */
 function seedsWithCrashPoint(predicate: (crashPoint: number) => boolean): SeedPair & PublicSeeds {
   const base = { serverSeed: "test-server-seed", clientSeed: "client", serverSeedHash: "hash" };
   for (let nonce = 0; nonce < 10_000; nonce++) {
@@ -53,7 +53,7 @@ describe("CrashEngine", () => {
     return { engine, wallet };
   }
 
-  it("zahlt beim Auto-Cashout genau den Ziel-Multiplikator aus", async () => {
+  it("pays exactly the target multiplier on auto cashout", async () => {
     const seeds = seedsWithCrashPoint((cp) => cp >= 3);
     const { engine, wallet } = setup(seeds);
     const result = engine.placeBet(1_000, 2)!;
@@ -65,7 +65,7 @@ describe("CrashEngine", () => {
     engine.stop();
   });
 
-  it("verliert den Einsatz, wenn die Rakete vor dem Ziel explodiert", async () => {
+  it("loses the bet when the rocket explodes before the target", async () => {
     const seeds = seedsWithCrashPoint((cp) => cp < 1.5);
     const { engine, wallet } = setup(seeds);
     const result = engine.placeBet(1_000, 5)!;
@@ -77,7 +77,7 @@ describe("CrashEngine", () => {
     engine.stop();
   });
 
-  it("erlaubt manuellen Cashout während der Runde", async () => {
+  it("allows a manual cashout during the round", async () => {
     const seeds = seedsWithCrashPoint((cp) => cp >= 5);
     const { engine } = setup(seeds);
     const result = engine.placeBet(1_000, null)!;
@@ -91,7 +91,7 @@ describe("CrashEngine", () => {
     engine.stop();
   });
 
-  it("gibt Wetten zurück, die abgebrochen oder beim Verlassen noch nicht gestartet waren", async () => {
+  it("refunds bets that were cancelled or had not started when leaving", async () => {
     const seeds = seedsWithCrashPoint((cp) => cp >= 2);
     const { engine, wallet } = setup(seeds);
     engine.placeBet(1_000, null);
@@ -120,7 +120,7 @@ describe("MinesGame", () => {
     return { game, wallet };
   }
 
-  it("deckt Diamanten auf und zahlt beim Cashout aus", () => {
+  it("reveals gems and pays out on cashout", () => {
     const { game, wallet } = setup();
     expect(game.start(1_000, 3)).toBe(true);
     expect(game.reveal(safe[0])).toBe("gem");
@@ -131,7 +131,7 @@ describe("MinesGame", () => {
     expect(game.getSnapshot().minePositions).toEqual(mines);
   });
 
-  it("beendet die Runde bei einer Mine ohne Auszahlung", () => {
+  it("ends the round on a mine without a payout", () => {
     const { game, wallet } = setup();
     game.start(1_000, 3);
     expect(game.reveal(mines[0])).toBe("mine");
@@ -142,7 +142,7 @@ describe("MinesGame", () => {
 });
 
 describe("PlinkoWorld", () => {
-  it("lenkt jede Kugel in ihr faires Fach", () => {
+  it("steers every ball into its fair slot", () => {
     const landed: number[] = [];
     const world = new PlinkoWorld<null>(12, {
       onLand: (ball) => landed.push(Math.abs(ball.body.position.x - world.geometry.binCenters[ball.bin])),

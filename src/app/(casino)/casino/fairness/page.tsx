@@ -32,7 +32,7 @@ export default async function FairnessPage({ searchParams }: PageProps<"/casino/
         </span>
         <div>
           <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-white">Provably Fair</h1>
-          <p className="text-sm text-zinc-500">Jedes Ergebnis ist vorab festgelegt und von dir nachprüfbar.</p>
+          <p className="text-sm text-zinc-500">Every result is fixed in advance and you can verify it.</p>
         </div>
       </div>
       <FairnessView prefill={prefill} />

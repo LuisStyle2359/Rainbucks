@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s · Rainbucks",
   },
   description:
-    "Demo-Casino mit virtuellem Spielgeld: Crash, Mines, Limbo und Plinko. Provably Fair, kein echtes Geld.",
+    "Demo casino with virtual play money: Crash, Mines, Limbo and Plinko. Provably fair, no real money.",
 };
 
 export const viewport: Viewport = {
@@ -36,7 +36,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="de"
+      lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${chakraPetch.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-oled font-sans text-zinc-200">{children}</body>

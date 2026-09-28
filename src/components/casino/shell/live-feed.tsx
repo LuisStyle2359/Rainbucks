@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import type { LiveBet } from "@/lib/realtime/types";
 import { useLiveStore } from "@/lib/stores/live-store";
 
-/** Echtzeit-Feed der Einsätze aller (simulierten) Spieler. */
+/** Real-time feed of the bets of all (simulated) players. */
 export function LiveFeed({ limit = 30, compact = false }: { limit?: number; compact?: boolean }) {
   const feed = useLiveStore((s) => s.feed);
   return (
@@ -45,10 +45,10 @@ function LiveBetRow({ bet }: { bet: LiveBet }) {
       >
         <Icon className="size-4 text-zinc-500" aria-label={GAMES[bet.game].name} />
         <span className="truncate" style={{ color: bet.user.isYou ? undefined : bet.user.color }}>
-          {bet.user.isYou ? <span className="font-semibold text-white">Du</span> : bet.user.name}
+          {bet.user.isYou ? <span className="font-semibold text-white">You</span> : bet.user.name}
         </span>
         <span className={cn("font-mono tabular", win ? "text-zinc-200" : "text-zinc-500")}>
-          {bet.multiplier > 0 ? formatMultiplier(bet.multiplier) : "0,00×"}
+          {bet.multiplier > 0 ? formatMultiplier(bet.multiplier) : "0.00×"}
         </span>
         <span className={cn("w-16 text-right font-mono font-semibold tabular", win ? "text-toxic" : "text-neon-red/80")}>
           {win ? "+" : "−"}

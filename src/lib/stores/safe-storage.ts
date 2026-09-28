@@ -1,10 +1,9 @@
 import { createJSONStorage } from "zustand/middleware";
 
 /**
- * localStorage mit Rückfall auf einen Speicher im Arbeitsspeicher.
- * In privaten Fenstern oder eingebetteten Seiten kann der Zugriff auf
- * localStorage eine Exception werfen. Das Spiel läuft dann trotzdem,
- * nur ohne Speichern über das Neuladen hinaus.
+ * localStorage with an in-memory fallback. In private windows or embedded
+ * pages, touching localStorage can throw. The game keeps working then,
+ * it just forgets its state on reload.
  */
 const memory = new Map<string, string>();
 

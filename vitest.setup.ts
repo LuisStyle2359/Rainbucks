@@ -1,4 +1,4 @@
-// Minimaler localStorage für die zustand-Stores in Node-Tests.
+// Minimal localStorage for the zustand stores in Node tests.
 class MemoryStorage {
   private data = new Map<string, string>();
   get length() {

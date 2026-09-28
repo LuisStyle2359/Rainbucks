@@ -1,5 +1,7 @@
 import { AnimatePresence, motion, MotionConfig } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { BonusButton, BonusWheelDialog } from "@/components/casino/bonus/bonus-wheel";
+import { CelebrationLayer } from "@/components/casino/celebrations/celebration-layer";
 import { Lobby, type LobbyLink } from "@/components/casino/lobby/lobby";
 import { Balance } from "@/components/casino/shell/balance";
 import { LiveToggle, Logo, SoundToggle } from "@/components/casino/shell/controls";
@@ -7,6 +9,7 @@ import { LiveDrawer, LivePanel } from "@/components/casino/shell/live-panel";
 import { AmbientLight, ShellSkeleton } from "@/components/casino/shell/shell-parts";
 import { useCasinoRuntime } from "@/components/casino/shell/use-casino-runtime";
 import { GAME_ICONS, HomeIcon, ShieldIcon } from "@/components/casino/ui/icons";
+import { LevelBadge } from "@/components/casino/vip/level-badge";
 import { FairnessView } from "@/components/fairness/fairness-view";
 import { CrashGame } from "@/components/games/crash/crash-game";
 import { GameHeader } from "@/components/games/game-header";
@@ -20,8 +23,8 @@ import { useFairnessStore, createFairnessData } from "@/lib/stores/fairness-stor
 import { useWalletStore } from "@/lib/stores/wallet-store";
 
 /**
- * Gast-Demo: dieselben Spiele wie in der App, aber ohne Login und Server.
- * Navigation über den Anker in der Adresse (#crash, #mines, …).
+ * Guest demo: the same games as the app, but without login and server.
+ * Navigation via the anchor in the address (#crash, #mines, …).
  */
 
 const VIEWS = ["lobby", ...GAME_IDS, "fairness"] as const;
@@ -45,7 +48,7 @@ const HashLink: LobbyLink = ({ href, className, onClick, onPointerEnter, childre
 );
 
 export function DemoApp() {
-  const ready = useCasinoRuntime("guest", "Gast");
+  const ready = useCasinoRuntime("guest", "Guest");
   const [view, setView] = useState<View>(readView);
 
   useEffect(() => {
@@ -84,6 +87,8 @@ export function DemoApp() {
           <LivePanel />
         </div>
         <LiveDrawer />
+        {ready && <BonusWheelDialog />}
+        <CelebrationLayer />
       </div>
     </MotionConfig>
   );
@@ -131,7 +136,7 @@ function ViewContent({ view }: { view: View }) {
         <>
           <div className="mb-5">
             <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-white">Provably Fair</h1>
-            <p className="text-sm text-zinc-500">Jedes Ergebnis ist vorab festgelegt und von dir nachprüfbar.</p>
+            <p className="text-sm text-zinc-500">Every result is fixed in advance and you can verify it.</p>
           </div>
           <FairnessView prefill={{}} />
         </>
@@ -150,15 +155,17 @@ function DemoTopBar({ ready, view }: { ready: boolean; view: View }) {
           <Logo className="hidden sm:inline" />
         </a>
         <span className="hidden rounded-md border border-toxic/30 bg-toxic/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-toxic md:inline">
-          Gast-Demo · Spielgeld
+          Guest demo · Play money
         </span>
-        <div className="ml-auto flex items-center gap-2">
-          {ready ? <Balance /> : <div className="glass h-10 w-32 animate-pulse rounded-xl" />}
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {ready ? <Balance /> : <div className="glass h-9 w-28 animate-pulse rounded-xl sm:h-10 sm:w-32" />}
+          {ready && <BonusButton />}
+          {ready && <LevelBadge />}
           <SoundToggle />
           <LiveToggle />
         </div>
       </div>
-      <nav className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2.5 lg:hidden" aria-label="Spiele">
+      <nav className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2.5 lg:hidden" aria-label="Games">
         {NAV.map((item) => (
           <NavLink key={item.view} item={item} active={item.view === view} layoutId="demo-mobile-nav" compact />
         ))}
@@ -177,9 +184,8 @@ function DemoSideNav({ view }: { view: View }) {
         <NavLink key={item.view} item={item} active={item.view === view} layoutId="demo-side-nav" />
       ))}
       <div className="mt-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs leading-relaxed text-zinc-500">
-        <p className="mb-1 font-semibold text-zinc-300">Nur Spielgeld</p>
-        Gast-Demo von Rainbucks. Keine Einzahlungen, keine Auszahlungen, kein echtes Geld. Dein Spielstand bleibt in
-        diesem Browser.
+        <p className="mb-1 font-semibold text-zinc-300">Play money only</p>
+        Guest demo of Rainbucks. No deposits, no withdrawals, no real money. Your progress stays in this browser.
       </div>
     </nav>
   );
@@ -226,7 +232,7 @@ function NavLink({
   );
 }
 
-/** Spielstand zurücksetzen – mit Bestätigung auf der Seite (confirm() ist hier nicht verfügbar). */
+/** Reset progress, with an inline confirmation (confirm() is not available here). */
 function ResetPanel() {
   const [confirming, setConfirming] = useState(false);
   const reset = () => {
@@ -238,7 +244,7 @@ function ResetPanel() {
   return (
     <section className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4 text-sm">
       <p className="text-zinc-400">
-        Gast-Demo: kein Konto nötig, dein Spielstand bleibt nur in diesem Browser gespeichert.
+        Guest demo: no account needed, your progress is only saved in this browser.
       </p>
       {confirming ? (
         <span className="flex gap-2">
@@ -247,14 +253,14 @@ function ResetPanel() {
             onClick={reset}
             className="rounded-lg bg-neon-red px-3 py-1.5 font-medium text-white shadow-glow-red"
           >
-            Ja, auf 1.000 RBX zurücksetzen
+            Yes, reset to 1,000 RBX
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
             className="rounded-lg border border-white/[0.1] px-3 py-1.5 text-zinc-300"
           >
-            Abbrechen
+            Cancel
           </button>
         </span>
       ) : (
@@ -263,7 +269,7 @@ function ResetPanel() {
           onClick={() => setConfirming(true)}
           className="rounded-lg border border-white/[0.1] px-3 py-1.5 text-zinc-400 transition hover:border-neon-red/50 hover:text-neon-red"
         >
-          Spielstand zurücksetzen
+          Reset progress
         </button>
       )}
     </section>

@@ -11,7 +11,7 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
       <Header />
       <main className="relative flex flex-1 flex-col">{children}</main>
       <footer className="relative border-t border-white/[0.06] py-6 text-center text-xs text-zinc-500">
-        © {new Date().getFullYear()} Rainbucks · Portfolio-Projekt · Nur virtuelles Spielgeld, kein Echtgeld
+        © {new Date().getFullYear()} Rainbucks · Portfolio project · Virtual play money only, no real money
       </footer>
     </div>
   );

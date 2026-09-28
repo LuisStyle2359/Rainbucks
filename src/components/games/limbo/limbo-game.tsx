@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useAnimate } from "motion/react";
 import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { BetPanel, type BetMode } from "@/components/casino/bet-panel/bet-panel";
 import { useAutoBet } from "@/components/casino/bet-panel/use-auto-bet";
@@ -45,6 +45,7 @@ export function LimboGame() {
   const [recent, setRecent] = useState<{ id: number; result: number; win: boolean }[]>([]);
   const rolling = useRef(false);
   const rollCounter = useRef(0);
+  const [numberScope, animateNumber] = useAnimate<HTMLDivElement>();
 
   const play = useCallback(
     async (fast: boolean): Promise<number | null> => {
@@ -57,7 +58,7 @@ export function LimboGame() {
       }
       rolling.current = true;
 
-      // Ergebnis steht sofort fest (Provably Fair), die Animation macht es nur spannend.
+      // The result is fixed right away (provably fair); the animation only adds suspense.
       const seeds = consumeSeeds();
       const result = ProvablyFair.limboResult(seeds);
       const win = result >= betTarget;
@@ -65,7 +66,7 @@ export function LimboGame() {
       const id = ++rollCounter.current;
       setRoll({ id, result, target: betTarget, win, durationMs, done: false });
 
-      // Ticken wie eine Slot-Maschine, zum Ende hin langsamer
+      // Ticks like a slot machine, slowing down towards the end
       const started = performance.now();
       const tick = () => {
         const progress = (performance.now() - started) / durationMs;
@@ -86,11 +87,17 @@ export function LimboGame() {
       });
       setRoll((current) => (current.id === id ? { ...current, done: true } : current));
       setRecent((current) => [{ id, result, win }, ...current].slice(0, 14));
-      audio.play(win ? (betTarget >= 10 ? "bigWin" : "win") : "lose");
+      // Big-win fanfares come from the celebration layer; here the number itself reacts
+      audio.play(win ? "win" : "lose");
+      if (numberScope.current) {
+        void (win
+          ? animateNumber(numberScope.current, { scale: [1, 1.22, 0.96, 1] }, { duration: 0.5, ease: "easeOut" })
+          : animateNumber(numberScope.current, { x: [0, -10, 9, -6, 4, 0] }, { duration: 0.4 }));
+      }
       rolling.current = false;
       return calculatePayout(betAmount, win ? betTarget : 0) - betAmount;
     },
-    [amount, target],
+    [amount, target, animateNumber, numberScope],
   );
 
   const auto = useAutoBet({ delayMs: turbo ? 120 : 350, run: () => play(true) });
@@ -107,21 +114,21 @@ export function LimboGame() {
         mode={mode}
         onModeChange={setMode}
         action={{
-          label: "Wetten",
+          label: "Bet",
           variant: "bet",
           disabled: !roll.done,
           onClick: () => void play(turbo),
         }}
         auto={auto}
         locked={!roll.done && mode === "manual"}
-        summary={`Ziel ${formatMultiplier(target)} · ${formatPercent(chance)}`}
+        summary={`Target ${formatMultiplier(target)} · ${formatPercent(chance)}`}
       >
         <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2.5 text-sm">
-          <span className="text-zinc-400">Gewinn bei Treffer</span>
+          <span className="text-zinc-400">Profit on win</span>
           <span className="font-mono font-semibold text-toxic">+{formatAmount(profitOnWin)} RBX</span>
         </div>
         <label className="flex cursor-pointer items-center justify-between rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2.5 text-sm">
-          <span className="text-zinc-400">Turbo (schnelles Rollen)</span>
+          <span className="text-zinc-400">Turbo (fast rolls)</span>
           <input
             type="checkbox"
             checked={turbo}
@@ -132,9 +139,9 @@ export function LimboGame() {
       </BetPanel>
 
       <section className="flex min-w-0 flex-col gap-4">
-        <div className="flex min-h-8 items-center gap-2 overflow-x-auto scrollbar-none" aria-label="Letzte Ergebnisse">
+        <div className="flex min-h-8 items-center gap-2 overflow-x-auto scrollbar-none" aria-label="Recent results">
           {recent.length === 0 && (
-            <span className="text-xs uppercase tracking-widest text-zinc-600">Noch keine Würfe</span>
+            <span className="text-xs uppercase tracking-widest text-zinc-600">No rolls yet</span>
           )}
           <AnimatePresence initial={false} mode="popLayout">
             {recent.map((item) => (
@@ -155,7 +162,10 @@ export function LimboGame() {
           </AnimatePresence>
         </div>
 
-        <div className="glass glass-edge relative flex min-h-[18rem] flex-col items-center justify-center overflow-hidden rounded-3xl px-4 py-10 sm:min-h-[22rem]">
+        <div
+          data-game-stage
+          className="glass glass-edge relative flex min-h-[18rem] flex-col items-center justify-center overflow-hidden rounded-3xl px-4 py-10 sm:min-h-[22rem]"
+        >
           <div className="bg-grid pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_at_center,black,transparent_70%)]" />
           <motion.div
             key={roll.done && showResult ? `glow-${roll.id}` : "idle"}
@@ -168,7 +178,30 @@ export function LimboGame() {
                 : "bg-[radial-gradient(circle_at_50%_50%,rgb(255_45_85/0.14),transparent_60%)]",
             )}
           />
-          <div className={cn("relative flex items-start text-[clamp(3.4rem,15vw,9.5rem)] font-bold transition-colors duration-200", tone)}>
+          {/* Shockwave on a hit */}
+          <AnimatePresence>
+            {roll.done && roll.win && (
+              <motion.span
+                key={`ring-${roll.id}`}
+                aria-hidden
+                className={cn(
+                  "pointer-events-none absolute left-1/2 top-1/2 -ml-20 -mt-20 size-40 rounded-full border-4",
+                  roll.target >= 10 ? "border-gold" : "border-toxic",
+                )}
+                initial={{ scale: 0.2, opacity: 0.9 }}
+                animate={{ scale: 3.2, opacity: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
+            )}
+          </AnimatePresence>
+          <div
+            ref={numberScope}
+            className={cn(
+              "relative flex items-start text-[clamp(3.4rem,15vw,9.5rem)] font-bold transition-colors duration-200",
+              tone,
+            )}
+          >
             <Odometer text={formatTwoDecimals(roll.result)} rollId={roll.id} durationMs={roll.durationMs} />
             <span className="ml-1 leading-[1.12]">×</span>
           </div>
@@ -181,12 +214,12 @@ export function LimboGame() {
               className="relative mt-4 font-mono text-sm text-zinc-400"
             >
               {!showResult
-                ? "Wähle dein Ziel und setze"
+                ? "Pick your target and bet"
                 : !roll.done
-                  ? `Ziel ${formatMultiplier(roll.target)} …`
+                  ? `Target ${formatMultiplier(roll.target)} …`
                   : roll.win
-                    ? `Treffer! Ziel ${formatMultiplier(roll.target)} erreicht`
-                    : `Knapp daneben: Ziel war ${formatMultiplier(roll.target)}`}
+                    ? `Target ${formatMultiplier(roll.target)} hit!`
+                    : `Missed · target was ${formatMultiplier(roll.target)}`}
             </motion.p>
           </AnimatePresence>
         </div>
@@ -212,7 +245,7 @@ function TargetControls({
       <div className="grid grid-cols-2 gap-3">
         <DecimalField
           id="limbo-target"
-          label="Ziel-Multiplikator"
+          label="Target multiplier"
           value={target}
           onChange={(value) => value !== null && onChange(value)}
           format={formatTwoDecimals}
@@ -222,10 +255,10 @@ function TargetControls({
         />
         <DecimalField
           id="limbo-chance"
-          label="Gewinnchance"
+          label="Win chance"
           value={limboWinChance(target)}
           onChange={(value) => value !== null && onChange(limboTargetForChance(value))}
-          format={(value) => value.toLocaleString("de-DE", { maximumFractionDigits: 6 })}
+          format={(value) => value.toLocaleString("en-US", { maximumFractionDigits: 6 })}
           normalize={(value) => Math.min(98.02, Math.max(0.0001, value))}
           suffix="%"
           disabled={disabled}
@@ -233,7 +266,7 @@ function TargetControls({
       </div>
       <input
         type="range"
-        aria-label="Ziel-Multiplikator"
+        aria-label="Target multiplier"
         min={0}
         max={1000}
         value={Math.round(position * 1000)}

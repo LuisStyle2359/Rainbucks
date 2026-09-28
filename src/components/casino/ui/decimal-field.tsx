@@ -7,12 +7,12 @@ import { cn } from "@/lib/cn";
 interface DecimalFieldProps {
   id: string;
   label: ReactNode;
-  /** Rechts neben dem Label, z. B. Gewinnchance */
+  /** Right of the label, e.g. the win chance */
   hint?: ReactNode;
   value: number | null;
   onChange: (value: number | null) => void;
   format: (value: number) => string;
-  /** Eingabe → gültiger Wert (klemmen, runden). null = ungültig/leer. */
+  /** Input → valid value (clamp, round). null = invalid/empty. */
   normalize: (value: number) => number | null;
   suffix?: string;
   placeholder?: string;
@@ -22,9 +22,9 @@ interface DecimalFieldProps {
 }
 
 /**
- * Zahlenfeld mit deutscher Schreibweise ("2,50").
- * Während der Eingabe bleibt der Text frei editierbar, beim Verlassen
- * wird geprüft und formatiert.
+ * Number field ("2.50"; "2,50" is accepted too).
+ * While typing the text stays freely editable; on blur it is
+ * validated and formatted.
  */
 export function DecimalField({
   id,
@@ -91,6 +91,6 @@ export function DecimalField({
   );
 }
 
-const twoDecimals = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const twoDecimals = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export const formatTwoDecimals = (value: number) => twoDecimals.format(value);

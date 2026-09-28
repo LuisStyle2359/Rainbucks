@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { logout } from "@/app/auth/actions";
+import { BonusButton } from "@/components/casino/bonus/bonus-wheel";
 import { LogoutIcon, ShieldIcon, UserIcon } from "@/components/casino/ui/icons";
+import { LevelAvatar, VipCard } from "@/components/casino/vip/level-badge";
 import { audio } from "@/lib/audio/audio-engine";
 import { cn } from "@/lib/cn";
 import { Balance } from "./balance";
@@ -23,14 +25,15 @@ export function TopBar({ name, ready }: { name: string; ready: boolean }) {
           <Logo className="hidden sm:inline" />
         </Link>
         <span className="hidden rounded-md border border-toxic/30 bg-toxic/[0.07] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-toxic md:inline">
-          Demo · Spielgeld
+          Demo · Play money
         </span>
 
-        <div className="ml-auto flex items-center gap-2">
-          {ready ? <Balance /> : <div className="glass h-10 w-32 animate-pulse rounded-xl" />}
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {ready ? <Balance /> : <div className="glass h-9 w-28 animate-pulse rounded-xl sm:h-10 sm:w-32" />}
+          {ready && <BonusButton />}
           <SoundToggle />
           <LiveToggle />
-          <UserMenu name={name} />
+          <UserMenu name={name} ready={ready} />
         </div>
       </div>
       <MobileNav />
@@ -38,7 +41,7 @@ export function TopBar({ name, ready }: { name: string; ready: boolean }) {
   );
 }
 
-function UserMenu({ name }: { name: string }) {
+function UserMenu({ name, ready }: { name: string; ready: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -61,11 +64,16 @@ function UserMenu({ name }: { name: string }) {
           audio.play("click");
           setOpen((value) => !value);
         }}
-        className="glass flex h-10 items-center gap-2 rounded-xl pl-1.5 pr-1.5 transition hover:border-toxic/40 sm:pr-3"
+        aria-label={`Account menu for ${name}`}
+        className="glass flex h-9 items-center gap-2 rounded-xl px-1 transition hover:border-toxic/40 sm:h-10 sm:pl-1.5 sm:pr-3"
       >
-        <span className="grid size-7 place-items-center rounded-lg bg-gradient-to-br from-toxic to-cyan font-display text-sm font-bold text-black">
-          {name.slice(0, 1).toUpperCase()}
-        </span>
+        {ready ? (
+          <LevelAvatar name={name} />
+        ) : (
+          <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-toxic to-cyan font-display text-sm font-bold text-black">
+            {name.slice(0, 1).toUpperCase()}
+          </span>
+        )}
         <span className="hidden max-w-28 truncate text-sm text-zinc-200 sm:inline">{name}</span>
       </button>
       <AnimatePresence>
@@ -76,11 +84,12 @@ function UserMenu({ name }: { name: string }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -6, scale: 0.97 }}
             transition={{ duration: 0.15 }}
-            className="glass-strong absolute right-0 top-12 w-56 origin-top-right overflow-hidden rounded-xl p-1.5 shadow-glow-soft"
+            className="absolute right-0 top-12 w-80 origin-top-right overflow-hidden rounded-xl border border-white/10 bg-ink-900 p-1.5 shadow-glow-soft max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.25rem] max-sm:w-auto"
           >
             <p className="px-3 py-2 text-xs text-zinc-500">
-              Eingeloggt als <span className="text-zinc-200">{name}</span>
+              Signed in as <span className="text-zinc-200">{name}</span>
             </p>
+            {ready && <VipCard className="mb-1.5 border border-white/[0.06] bg-black/30" />}
             <MenuLink href="/dashboard" onNavigate={() => setOpen(false)}>
               <UserIcon className="size-4" /> Dashboard
             </MenuLink>
@@ -93,7 +102,7 @@ function UserMenu({ name }: { name: string }) {
                 role="menuitem"
                 className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-neon-red-300 transition hover:bg-neon-red/10"
               >
-                <LogoutIcon className="size-4" /> Ausloggen
+                <LogoutIcon className="size-4" /> Log out
               </button>
             </form>
           </motion.div>
@@ -116,11 +125,11 @@ function MenuLink({ href, onNavigate, children }: { href: string; onNavigate: ()
   );
 }
 
-/** Horizontale Navigation für Handy und Tablet. */
+/** Horizontal navigation for phones and tablets. */
 function MobileNav() {
   const pathname = usePathname();
   return (
-    <nav className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2.5 lg:hidden" aria-label="Spiele">
+    <nav className="scrollbar-none flex gap-1.5 overflow-x-auto px-3 pb-2.5 lg:hidden" aria-label="Games">
       {ALL_ITEMS.map((item) => {
         const active = isActive(pathname, item.href);
         const Icon = item.icon;

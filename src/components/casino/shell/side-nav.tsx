@@ -7,7 +7,7 @@ import { audio } from "@/lib/audio/audio-engine";
 import { cn } from "@/lib/cn";
 import { ACCOUNT_ITEMS, GAME_ITEMS, isActive, LOBBY_ITEM, type NavItem } from "./nav-items";
 
-/** Desktop-Navigation. Die aktive Markierung gleitet per layoutId von Eintrag zu Eintrag. */
+/** Desktop navigation. The active marker glides from item to item via layoutId. */
 export function SideNav() {
   const pathname = usePathname();
 
@@ -50,16 +50,16 @@ export function SideNav() {
     >
       <div className="space-y-1">{renderItem(LOBBY_ITEM)}</div>
       <div>
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-600">Spiele</p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-600">Games</p>
         <div className="space-y-1">{GAME_ITEMS.map(renderItem)}</div>
       </div>
       <div>
-        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-600">Konto</p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-600">Account</p>
         <div className="space-y-1">{ACCOUNT_ITEMS.map(renderItem)}</div>
       </div>
       <div className="mt-auto rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs leading-relaxed text-zinc-500">
-        <p className="mb-1 font-semibold text-zinc-300">Nur Spielgeld</p>
-        Portfolio-Demo mit virtuellen Rainbucks (RBX). Keine Einzahlungen, keine Auszahlungen, kein echtes Geld.
+        <p className="mb-1 font-semibold text-zinc-300">Play money only</p>
+        Portfolio demo with virtual Rainbucks (RBX). No deposits, no withdrawals, no real money.
       </div>
     </nav>
   );

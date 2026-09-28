@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { CasinoShell } from "@/components/casino/shell/casino-shell";
 import { createClient } from "@/lib/supabase/server";
 
-// Geschützter Bereich: Lobby, Spiele, Fairness und Dashboard.
+// Protected area: lobby, games, fairness and dashboard.
 export default async function CasinoLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {
@@ -20,7 +20,7 @@ export default async function CasinoLayout({ children }: { children: ReactNode }
     .eq("id", user.id)
     .single();
 
-  const name = profile?.full_name?.trim() || user.email?.split("@")[0] || "Spieler";
+  const name = profile?.full_name?.trim() || user.email?.split("@")[0] || "Player";
 
   return (
     <CasinoShell key={user.id} user={{ id: user.id, name }}>

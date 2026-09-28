@@ -1,25 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { createSafeStorage } from "./safe-storage";
 import type { BetDetails } from "@/lib/casino/games";
 import { calculatePayout, STARTING_BALANCE } from "@/lib/casino/money";
 import type { PublicSeeds } from "@/lib/fairness/provably-fair";
+import { createSafeStorage } from "./safe-storage";
 
 const HISTORY_LIMIT = 100;
 
 export type BetRecord = {
   id: string;
-  /** Einsatz in Cent */
+  /** Stake in cents */
   amount: number;
-  /** Ausgezahlter Multiplikator, 0 bei Verlust */
+  /** Paid multiplier, 0 on a loss */
   multiplier: number;
-  /** Auszahlung in Cent (inkl. Einsatz), 0 bei Verlust */
+  /** Payout in cents (includes the stake), 0 on a loss */
   payout: number;
   createdAt: number;
   seeds: PublicSeeds;
 } & BetDetails;
 
-// Omit, das die Spiel-Varianten (Union) erhält.
+// Omit that keeps the per-game union intact.
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 export type SettleInput = DistributiveOmit<BetRecord, "id" | "createdAt" | "payout">;
@@ -38,17 +38,25 @@ interface WalletData {
   history: BetRecord[];
   stats: WalletStats;
   refills: number;
+  /** Play money received from level-ups and free spins (cents) */
+  bonuses: number;
+  /** Timestamp of the last free spin, null = never spun */
+  lastSpinAt: number | null;
 }
 
 interface WalletActions {
-  /** Bucht den Einsatz ab. Gibt false zurück, wenn das Guthaben nicht reicht. */
+  /** Takes the stake. Returns false if the balance is too low. */
   debit: (amount: number) => boolean;
-  /** Schreibt die Auszahlung gut und speichert die Wette in der Historie. */
+  /** Credits the payout and stores the bet in the history. */
   settle: (input: SettleInput) => BetRecord;
-  /** Gibt einen Einsatz zurück (z. B. abgebrochene Crash-Wette). */
+  /** Returns a stake (e.g. a cancelled Crash bet). */
   refund: (amount: number) => void;
-  /** Demo-Aufladung, wenn das Spielgeld fast aufgebraucht ist. */
+  /** Demo top-up when the play money is almost gone. */
   refill: () => void;
+  /** Level-up reward. */
+  grantBonus: (amount: number) => void;
+  /** Free spin reward, starts the cooldown. */
+  claimSpin: (amount: number) => void;
   reset: () => void;
 }
 
@@ -68,6 +76,8 @@ export const createWalletData = (): WalletData => ({
   history: [],
   stats: emptyStats(),
   refills: 0,
+  bonuses: 0,
+  lastSpinAt: null,
 });
 
 let idCounter = 0;
@@ -117,17 +127,34 @@ export const useWalletStore = create<WalletState>()(
           refills: state.refills + 1,
         })),
 
+      grantBonus: (amount) =>
+        set((state) => ({ balance: state.balance + amount, bonuses: state.bonuses + amount })),
+
+      claimSpin: (amount) =>
+        set((state) => ({
+          balance: state.balance + amount,
+          bonuses: state.bonuses + amount,
+          lastSpinAt: Date.now(),
+        })),
+
       reset: () => set(createWalletData()),
     }),
     {
-      // Der Name wird pro Nutzer gesetzt, siehe hydratePlayerStores().
+      // The name is set per user, see hydratePlayerStores().
       name: "rainbucks:wallet",
       storage: createSafeStorage(),
       skipHydration: true,
       version: 1,
-      partialize: ({ balance, history, stats, refills }) => ({ balance, history, stats, refills }),
-      // Kein gespeicherter Stand (neuer Nutzer) → frisches Startguthaben
-      // statt des Stands eines vorher eingeloggten Nutzers.
+      partialize: ({ balance, history, stats, refills, bonuses, lastSpinAt }) => ({
+        balance,
+        history,
+        stats,
+        refills,
+        bonuses,
+        lastSpinAt,
+      }),
+      // Nothing stored (new user) → fresh starting balance instead of
+      // whatever a previously logged-in user left in memory.
       merge: (persisted, current) => ({
         ...current,
         ...createWalletData(),

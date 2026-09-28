@@ -24,18 +24,18 @@ export async function Header() {
               href="/casino"
               className="rounded-xl bg-toxic px-4 py-2 font-display font-bold uppercase tracking-wider text-black shadow-glow-toxic transition hover:-translate-y-0.5"
             >
-              Zum Casino
+              Go to casino
             </Link>
           ) : (
             <>
               <Link href="/login" className="rounded-xl px-3 py-2 text-zinc-300 transition hover:text-white">
-                Login
+                Log in
               </Link>
               <Link
                 href="/register"
                 className="rounded-xl bg-toxic px-4 py-2 font-display font-bold uppercase tracking-wider text-black shadow-glow-toxic transition hover:-translate-y-0.5"
               >
-                Registrieren
+                Sign up
               </Link>
             </>
           )}

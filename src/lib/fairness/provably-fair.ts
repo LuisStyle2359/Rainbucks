@@ -3,23 +3,23 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
 /**
- * Provably Fair – so funktioniert es
- * ----------------------------------
- * 1. Der "Server" würfelt einen geheimen Server-Seed und veröffentlicht vorab
- *    nur dessen SHA-256-Hash. Damit ist er festgelegt, aber noch unbekannt.
- * 2. Der Spieler wählt einen eigenen Client-Seed (beliebig änderbar).
- * 3. Jede Wette erhöht die Nonce um 1.
- * 4. Ergebnis = HMAC_SHA256(key = Server-Seed, msg = "ClientSeed:Nonce:Cursor").
- *    Aus den Bytes werden Zufallszahlen in [0, 1) gebildet.
- * 5. Nach dem Rotieren wird der Server-Seed offengelegt. Jeder kann jetzt
- *    prüfen, dass SHA-256(Server-Seed) dem vorab gezeigten Hash entspricht
- *    und jedes Ergebnis exakt nachrechnen.
+ * Provably Fair – how it works
+ * ----------------------------
+ * 1. The "server" rolls a secret server seed and publishes only its SHA-256
+ *    hash upfront. The seed is fixed from that moment, but still unknown.
+ * 2. The player picks their own client seed (changeable at any time).
+ * 3. Every bet increments the nonce by 1.
+ * 4. Result = HMAC_SHA256(key = server seed, msg = "clientSeed:nonce:cursor").
+ *    The bytes are turned into random numbers in [0, 1).
+ * 5. Rotating reveals the server seed. Anyone can now check that
+ *    SHA-256(server seed) matches the published hash and recompute every
+ *    result exactly.
  *
- * Weder Server (kennt den Client-Seed nicht vorher) noch Spieler (kennt den
- * Server-Seed nicht vorher) können das Ergebnis allein beeinflussen.
+ * Neither the server (does not know the client seed in advance) nor the player
+ * (does not know the server seed in advance) can steer the outcome alone.
  *
- * Hinweis: In diesem Demo-Simulator läuft der "Server" im Browser. In einer
- * echten Anwendung liegt der Server-Seed bis zur Rotation nur auf dem Server.
+ * Note: in this demo simulator the "server" runs in the browser. In a real
+ * application the server seed stays on the server until rotation.
  */
 
 export const HOUSE_EDGE = 0.01; // 1 % Hausvorteil → RTP 99 %
@@ -35,7 +35,7 @@ export interface SeedPair {
   nonce: number;
 }
 
-/** Das, was der Spieler vor der Wette sieht (ohne geheimen Server-Seed). */
+/** What the player sees before a bet (without the secret server seed). */
 export interface PublicSeeds {
   serverSeedHash: string;
   clientSeed: string;
@@ -58,7 +58,7 @@ export type VerifyOutcome =
 
 export interface VerifyResult {
   serverSeedHash: string;
-  /** null, wenn kein Hash zum Vergleich angegeben wurde. */
+  /** null when no hash was given to compare against. */
   hashMatches: boolean | null;
   outcome: VerifyOutcome;
 }
@@ -85,12 +85,12 @@ export class ProvablyFair {
   }
 
   // ---------------------------------------------------------------------------
-  // Zufallszahlen
+  // Random numbers
   // ---------------------------------------------------------------------------
 
   /**
-   * Deterministische Bytes. Reichen 32 Bytes (ein HMAC) nicht aus,
-   * wird der Cursor erhöht und ein weiterer HMAC angehängt.
+   * Deterministic bytes. If 32 bytes (one HMAC) are not enough,
+   * the cursor is incremented and another HMAC is appended.
    */
   static bytes({ serverSeed, clientSeed, nonce }: SeedPair, count: number): Uint8Array {
     const out = new Uint8Array(count);
@@ -104,7 +104,7 @@ export class ProvablyFair {
   }
 
   /**
-   * Je 4 Bytes ergeben eine Zahl in [0, 1):
+   * Every 4 bytes form a number in [0, 1):
    * f = b0/256 + b1/256² + b2/256³ + b3/256⁴
    */
   static floats(seeds: SeedPair, count: number): number[] {
@@ -127,12 +127,12 @@ export class ProvablyFair {
   }
 
   // ---------------------------------------------------------------------------
-  // Spielergebnisse
+  // Game outcomes
   // ---------------------------------------------------------------------------
 
   /**
-   * Multiplikator mit 1 % Hausvorteil: M = 0,99 / (1 − f), mindestens 1,00×.
-   * Daraus folgt P(M ≥ x) = 0,99 / x. Beispiel: 2× wird in 49,5 % erreicht.
+   * Multiplier with a 1% house edge: M = 0.99 / (1 − f), at least 1.00×.
+   * This gives P(M ≥ x) = 0.99 / x. Example: 2× is reached 49.5% of the time.
    */
   static multiplierFromFloat(float: number): number {
     const raw = (1 - HOUSE_EDGE) / (1 - float);
@@ -148,10 +148,10 @@ export class ProvablyFair {
     return ProvablyFair.multiplierFromFloat(ProvablyFair.float(seeds));
   }
 
-  /** Fisher-Yates-Mischung der 25 Felder. Die ersten `mines` Felder sind Minen. */
+  /** Fisher-Yates shuffle of the 25 tiles. The first `mines` tiles are mines. */
   static minePositions(seeds: SeedPair, mines: number): number[] {
     if (!Number.isInteger(mines) || mines < 1 || mines >= MINES_TILES) {
-      throw new RangeError(`Ungültige Minenanzahl: ${mines}`);
+      throw new RangeError(`Invalid mine count: ${mines}`);
     }
     const tiles = Array.from({ length: MINES_TILES }, (_, i) => i);
     const floats = ProvablyFair.floats(seeds, MINES_TILES - 1);
@@ -162,18 +162,18 @@ export class ProvablyFair {
     return tiles.slice(0, mines).sort((a, b) => a - b);
   }
 
-  /** Pro Pin-Reihe eine Zahl: < 0,5 → links, sonst rechts. */
+  /** One number per pin row: < 0.5 → left, otherwise right. */
   static plinkoPath(seeds: SeedPair, rows: number): PlinkoStep[] {
     return ProvablyFair.floats(seeds, rows).map((f) => (f < 0.5 ? -1 : 1));
   }
 
-  /** Fach-Index = Anzahl der Rechts-Abpraller (0 … rows). */
+  /** Slot index = number of bounces to the right (0 … rows). */
   static plinkoBin(path: PlinkoStep[]): number {
     return path.reduce<number>((bin, step) => bin + (step === 1 ? 1 : 0), 0);
   }
 
   // ---------------------------------------------------------------------------
-  // Überprüfung
+  // Verification
   // ---------------------------------------------------------------------------
 
   static verify(

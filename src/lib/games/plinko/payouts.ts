@@ -4,18 +4,18 @@ export const PLINKO_ROWS = [8, 9, 10, 11, 12, 13, 14, 15, 16] as const;
 export type PlinkoRows = (typeof PLINKO_ROWS)[number];
 
 export const PLINKO_RISKS: { id: PlinkoRisk; label: string }[] = [
-  { id: "low", label: "Niedrig" },
-  { id: "medium", label: "Mittel" },
-  { id: "high", label: "Hoch" },
+  { id: "low", label: "Low" },
+  { id: "medium", label: "Medium" },
+  { id: "high", label: "High" },
 ];
 
 /**
- * Auszahlungstabellen (Multiplikator pro Fach, von links nach rechts).
+ * Payout tables (multiplier per slot, left to right).
  *
- * Erzeugt mit einer Formel: Mitte fest (0,5 / 0,4 / 0,2), Ränder wachsen
- * exponentiell mit der Reihenanzahl, dazwischen eine Potenzkurve. Die Kurve
- * wurde so gewählt, dass der erwartete Rückfluss (RTP) knapp unter 99 % liegt.
- * Die Tests in payouts.test.ts rechnen das für alle 27 Tabellen nach.
+ * Generated from a formula: fixed center (0.5 / 0.4 / 0.2), edges growing
+ * exponentially with the row count, a power curve in between. The curve was
+ * chosen so the expected return (RTP) sits just below 99%.
+ * The unit tests recompute this for all 27 tables.
  */
 export const PLINKO_PAYOUTS: Record<PlinkoRisk, Record<PlinkoRows, readonly number[]>> = {
   low: {
@@ -61,7 +61,7 @@ export function plinkoMultiplier(rows: PlinkoRows, risk: PlinkoRisk, bin: number
   return PLINKO_PAYOUTS[risk][rows][bin];
 }
 
-/** Wahrscheinlichkeit je Fach: Binomialverteilung B(rows, 0,5). */
+/** Probability per slot: binomial distribution B(rows, 0.5). */
 export function plinkoBinProbabilities(rows: number): number[] {
   const probabilities: number[] = [];
   let coefficient = 1;
@@ -72,7 +72,7 @@ export function plinkoBinProbabilities(rows: number): number[] {
   return probabilities;
 }
 
-/** Erwarteter Rückfluss (Return to Player) einer Tabelle. */
+/** Expected return to player (RTP) of a table. */
 export function plinkoRtp(rows: PlinkoRows, risk: PlinkoRisk): number {
   const probabilities = plinkoBinProbabilities(rows);
   return plinkoMultipliers(rows, risk).reduce((sum, m, i) => sum + m * probabilities[i], 0);

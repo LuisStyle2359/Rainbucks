@@ -69,11 +69,11 @@ function CopyValue({ label, value, secret }: { label: string; value: string; sec
           });
         }}
         className="group flex w-full items-center gap-2 rounded-lg border border-white/[0.08] bg-black/50 px-3 py-2.5 text-left font-mono text-xs text-zinc-200 transition hover:border-toxic/40"
-        title="Kopieren"
+        title="Copy"
       >
         <span className={cn("min-w-0 flex-1 break-all", secret && "blur-[3px] select-none")}>{value}</span>
         <span className="shrink-0 text-[10px] uppercase tracking-widest text-zinc-500 group-hover:text-toxic">
-          {copied ? "Kopiert ✓" : "Kopieren"}
+          {copied ? "Copied ✓" : "Copy"}
         </span>
       </button>
     </div>
@@ -88,12 +88,12 @@ function ActiveSeeds() {
   const [draft, setDraft] = useState<string | null>(null);
 
   return (
-    <Panel title="Aktives Seed-Paar">
+    <Panel title="Active seed pair">
       <div className="space-y-4">
-        <CopyValue label="Server-Seed (SHA-256-Hash, vorab veröffentlicht)" value={serverSeedHash} />
+        <CopyValue label="Server seed (SHA-256 hash, published in advance)" value={serverSeedHash} />
         <div>
           <label htmlFor="client-seed" className="mb-1 block text-[11px] font-medium uppercase tracking-widest text-zinc-500">
-            Client-Seed (von dir wählbar)
+            Client seed (your choice)
           </label>
           <div className="flex gap-2">
             <input
@@ -108,12 +108,12 @@ function ActiveSeeds() {
               onClick={() => setDraft(ProvablyFair.generateClientSeed())}
               className="glass h-11 shrink-0 rounded-lg px-3 text-xs font-medium text-zinc-300 hover:text-white"
             >
-              Zufällig
+              Random
             </button>
           </div>
         </div>
         <div className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2.5 text-sm">
-          <span className="text-zinc-400">Nonce (Wetten mit diesem Paar)</span>
+          <span className="text-zinc-400">Nonce (bets with this pair)</span>
           <span className="font-mono text-white">{nonce}</span>
         </div>
         <NeonButton
@@ -124,11 +124,11 @@ function ActiveSeeds() {
             audio.play("cashout");
           }}
         >
-          Seed-Paar rotieren
+          Rotate seed pair
         </NeonButton>
         <p className="text-xs leading-relaxed text-zinc-500">
-          Rotieren legt den bisherigen Server-Seed offen. Danach kannst du jede Wette dieses Paares nachrechnen.
-          Ein geänderter Client-Seed gilt ab dem neuen Paar.
+          Rotating reveals the current server seed. After that you can recompute every bet made with this pair. A
+          changed client seed applies from the new pair on.
         </p>
       </div>
     </Panel>
@@ -138,9 +138,9 @@ function ActiveSeeds() {
 function RevealedSeeds() {
   const revealed = useFairnessStore((s) => s.revealed);
   return (
-    <Panel title="Offengelegte Server-Seeds">
+    <Panel title="Revealed server seeds">
       {revealed.length === 0 ? (
-        <p className="text-sm text-zinc-500">Noch nichts offengelegt. Rotiere dein Seed-Paar, um den aktuellen Server-Seed zu sehen.</p>
+        <p className="text-sm text-zinc-500">Nothing revealed yet. Rotate your seed pair to see the current server seed.</p>
       ) : (
         <ul className="space-y-3">
           <AnimatePresence initial={false}>
@@ -152,13 +152,13 @@ function RevealedSeeds() {
                 animate={{ opacity: 1, y: 0 }}
                 className="space-y-2 rounded-xl border border-white/[0.06] bg-black/30 p-3"
               >
-                <CopyValue label="Server-Seed" value={seed.serverSeed} />
+                <CopyValue label="Server seed" value={seed.serverSeed} />
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <p className="text-zinc-500">
-                    Client-Seed: <span className="break-all font-mono text-zinc-200">{seed.clientSeed}</span>
+                    Client seed: <span className="break-all font-mono text-zinc-200">{seed.clientSeed}</span>
                   </p>
                   <p className="text-right text-zinc-500">
-                    Wetten: <span className="font-mono text-zinc-200">{seed.nonce}</span>
+                    Bets: <span className="font-mono text-zinc-200">{seed.nonce}</span>
                   </p>
                 </div>
               </motion.li>
@@ -173,8 +173,8 @@ function RevealedSeeds() {
 function Verifier({ prefill }: { prefill: VerifyPrefill }) {
   const revealed = useFairnessStore((s) => s.revealed);
   const [game, setGame] = useState<VerifyGame>(prefill.game ?? "crash");
-  // Ist der Server-Seed zur Wette schon offengelegt, wird er automatisch eingesetzt
-  // (auch wenn er erst auf dieser Seite durch Rotieren offengelegt wird).
+  // If the bet's server seed is already revealed, it is filled in automatically
+  // (also when it only gets revealed on this page by rotating).
   const knownSeed = revealed.find((seed) => seed.serverSeedHash === prefill.serverSeedHash)?.serverSeed;
   const [typedServerSeed, setServerSeed] = useState<string | null>(null);
   const serverSeed = typedServerSeed ?? knownSeed ?? "";
@@ -183,7 +183,7 @@ function Verifier({ prefill }: { prefill: VerifyPrefill }) {
   const [nonce, setNonce] = useState(prefill.nonce ?? "0");
   const [mines, setMines] = useState(prefill.mines ?? "3");
   const [rows, setRows] = useState(prefill.rows ?? "12");
-  // Nur gültige Werte aus der URL übernehmen (sie kann von Hand verändert werden)
+  // Only take valid values from the URL (it can be edited by hand)
   const [risk, setRisk] = useState<PlinkoRisk>(
     PLINKO_RISKS.find((r) => r.id === prefill.risk)?.id ?? "medium",
   );
@@ -193,15 +193,15 @@ function Verifier({ prefill }: { prefill: VerifyPrefill }) {
   const result: VerifyResult | { error: string } | null = useMemo(() => {
     if (!serverSeed.trim() || !clientSeed.trim()) return null;
     const nonceValue = Number(nonce);
-    if (!Number.isInteger(nonceValue) || nonceValue < 0) return { error: "Die Nonce muss eine ganze Zahl ≥ 0 sein." };
+    if (!Number.isInteger(nonceValue) || nonceValue < 0) return { error: "The nonce must be a whole number ≥ 0." };
     let params: VerifyParams;
     if (game === "mines") {
       const count = Number(mines);
-      if (!Number.isInteger(count) || count < 1 || count > 24) return { error: "Minen: 1 bis 24." };
+      if (!Number.isInteger(count) || count < 1 || count > 24) return { error: "Mines: 1 to 24." };
       params = { game, mines: count };
     } else if (game === "plinko") {
       const rowCount = Number(rows);
-      if (!isPlinkoRows(rowCount)) return { error: "Reihen: 8 bis 16." };
+      if (!isPlinkoRows(rowCount)) return { error: "Rows: 8 to 16." };
       params = { game, rows: rowCount };
     } else {
       params = { game };
@@ -216,25 +216,25 @@ function Verifier({ prefill }: { prefill: VerifyPrefill }) {
   const label = "mb-1 block text-[11px] font-medium uppercase tracking-widest text-zinc-500";
 
   return (
-    <Panel title="Ergebnis überprüfen">
+    <Panel title="Verify a result">
       <div className="space-y-4">
         <Segmented options={GAME_OPTIONS} value={game} onChange={setGame} layoutId="verify-game" size="sm" />
         {waitingForReveal && (
           <p className="rounded-lg border border-gold/30 bg-gold/[0.07] px-3 py-2 text-xs text-gold">
-            Diese Wette nutzt dein aktives Seed-Paar. Rotiere es links, dann wird der Server-Seed hier automatisch eingetragen.
+            This bet uses your active seed pair. Rotate it on the left and the server seed is filled in here automatically.
           </p>
         )}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="sm:col-span-2">
-            <span className={label}>Server-Seed (offengelegt)</span>
-            <input value={serverSeed} onChange={(e) => setServerSeed(e.target.value)} className={input} placeholder="64 Hex-Zeichen" />
+            <span className={label}>Server seed (revealed)</span>
+            <input value={serverSeed} onChange={(e) => setServerSeed(e.target.value)} className={input} placeholder="64 hex characters" />
           </label>
           <label className="sm:col-span-2">
-            <span className={label}>Erwarteter Hash (optional)</span>
-            <input value={expectedHash} onChange={(e) => setExpectedHash(e.target.value)} className={input} placeholder="SHA-256 des Server-Seeds" />
+            <span className={label}>Expected hash (optional)</span>
+            <input value={expectedHash} onChange={(e) => setExpectedHash(e.target.value)} className={input} placeholder="SHA-256 of the server seed" />
           </label>
           <label>
-            <span className={label}>Client-Seed</span>
+            <span className={label}>Client seed</span>
             <input value={clientSeed} onChange={(e) => setClientSeed(e.target.value)} className={input} />
           </label>
           <label>
@@ -243,18 +243,18 @@ function Verifier({ prefill }: { prefill: VerifyPrefill }) {
           </label>
           {game === "mines" && (
             <label>
-              <span className={label}>Minen</span>
+              <span className={label}>Mines</span>
               <input value={mines} inputMode="numeric" onChange={(e) => setMines(e.target.value)} className={input} />
             </label>
           )}
           {game === "plinko" && (
             <>
               <label>
-                <span className={label}>Reihen (8–16)</span>
+                <span className={label}>Rows (8–16)</span>
                 <input value={rows} inputMode="numeric" onChange={(e) => setRows(e.target.value)} className={input} />
               </label>
               <div className="sm:col-span-2">
-                <span className={label}>Risiko</span>
+                <span className={label}>Risk</span>
                 <Segmented
                   options={PLINKO_RISKS.map((r) => ({ value: r.id, label: r.label }))}
                   value={risk}
@@ -268,7 +268,7 @@ function Verifier({ prefill }: { prefill: VerifyPrefill }) {
         </div>
 
         <div className="min-h-32 rounded-xl border border-white/[0.06] bg-black/40 p-4">
-          {!result && <p className="text-sm text-zinc-500">Trage Server-Seed, Client-Seed und Nonce ein.</p>}
+          {!result && <p className="text-sm text-zinc-500">Enter server seed, client seed and nonce.</p>}
           {result && "error" in result && <p className="text-sm text-neon-red">{result.error}</p>}
           {result && !("error" in result) && <VerifyOutput result={result} risk={risk} />}
         </div>
@@ -282,7 +282,7 @@ function VerifyOutput({ result, risk }: { result: VerifyResult; risk: PlinkoRisk
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-zinc-500">SHA-256(Server-Seed):</span>
+        <span className="text-zinc-500">SHA-256(server seed):</span>
         <span className="break-all font-mono text-zinc-300">{serverSeedHash}</span>
         {hashMatches !== null && (
           <span
@@ -291,16 +291,16 @@ function VerifyOutput({ result, risk }: { result: VerifyResult; risk: PlinkoRisk
               hashMatches ? "bg-toxic/15 text-toxic" : "bg-neon-red/15 text-neon-red",
             )}
           >
-            {hashMatches ? "Hash stimmt ✓" : "Hash stimmt nicht ✗"}
+            {hashMatches ? "Hash matches ✓" : "Hash does not match ✗"}
           </span>
         )}
       </div>
 
-      {outcome.game === "crash" && <BigValue label="Crash-Punkt" value={formatMultiplier(outcome.crashPoint)} />}
-      {outcome.game === "limbo" && <BigValue label="Limbo-Ergebnis" value={formatMultiplier(outcome.result)} />}
+      {outcome.game === "crash" && <BigValue label="Crash point" value={formatMultiplier(outcome.crashPoint)} />}
+      {outcome.game === "limbo" && <BigValue label="Limbo result" value={formatMultiplier(outcome.result)} />}
       {outcome.game === "mines" && (
         <div>
-          <p className="mb-2 text-[11px] uppercase tracking-widest text-zinc-500">Minen-Positionen</p>
+          <p className="mb-2 text-[11px] uppercase tracking-widest text-zinc-500">Mine positions</p>
           <div className="grid w-48 grid-cols-5 gap-1.5">
             {Array.from({ length: 25 }, (_, tile) => {
               const mine = outcome.minePositions.includes(tile);
@@ -321,12 +321,12 @@ function VerifyOutput({ result, risk }: { result: VerifyResult; risk: PlinkoRisk
       )}
       {outcome.game === "plinko" && (
         <div className="space-y-2">
-          <p className="text-[11px] uppercase tracking-widest text-zinc-500">Pfad</p>
+          <p className="text-[11px] uppercase tracking-widest text-zinc-500">Path</p>
           <p className="font-mono text-sm tracking-widest text-zinc-200">
             {outcome.path.map((step) => (step === 1 ? "→" : "←")).join(" ")}
           </p>
           <BigValue
-            label={`Fach ${outcome.bin} von ${outcome.path.length}`}
+            label={`Slot ${outcome.bin} of ${outcome.path.length}`}
             value={
               isPlinkoRows(outcome.path.length)
                 ? formatMultiplier(plinkoMultiplier(outcome.path.length, risk, outcome.bin))
@@ -350,36 +350,36 @@ function BigValue({ label, value }: { label: string; value: string }) {
 
 function HowItWorks() {
   return (
-    <Panel title="So funktioniert Provably Fair">
+    <Panel title="How provably fair works">
       <ol className="space-y-3 text-sm leading-relaxed text-zinc-400">
         <li>
-          <span className="font-semibold text-zinc-200">1. Festlegen:</span> Vor deiner ersten Wette wird ein geheimer
-          Server-Seed erzeugt. Du siehst nur seinen SHA-256-Hash. Damit ist er festgelegt, kann aber nicht erraten werden.
+          <span className="font-semibold text-zinc-200">1. Commit:</span> Before your first bet a secret server seed is
+          created. You only see its SHA-256 hash. That locks it in, but it cannot be guessed.
         </li>
         <li>
-          <span className="font-semibold text-zinc-200">2. Mischen:</span> Dein Client-Seed und eine fortlaufende Nonce
-          fließen in jedes Ergebnis ein. Das Casino kennt deinen Client-Seed vorher nicht.
+          <span className="font-semibold text-zinc-200">2. Mix:</span> Your client seed and a running nonce go into every
+          result. The casino does not know your client seed in advance.
         </li>
         <li>
-          <span className="font-semibold text-zinc-200">3. Berechnen:</span> HMAC-SHA256 liefert 32 Zufallsbytes, je 4
-          Bytes werden zu einer Zahl zwischen 0 und 1.
+          <span className="font-semibold text-zinc-200">3. Compute:</span> HMAC-SHA256 yields 32 random bytes; every 4
+          bytes become a number between 0 and 1.
         </li>
         <li>
-          <span className="font-semibold text-zinc-200">4. Prüfen:</span> Nach dem Rotieren wird der Server-Seed
-          offengelegt. Jeder kann Hash und Ergebnis mit diesem Rechner nachprüfen.
+          <span className="font-semibold text-zinc-200">4. Verify:</span> After rotating, the server seed is revealed.
+          Anyone can check the hash and the result with this calculator.
         </li>
       </ol>
       <pre className="mt-4 whitespace-pre-wrap break-words rounded-xl border border-white/[0.06] bg-black/60 p-4 font-mono text-[11px] leading-relaxed text-zinc-300">
         {`bytes  = HMAC_SHA256(serverSeed, \`\${clientSeed}:\${nonce}:\${cursor}\`)
 float  = b0/256 + b1/256² + b2/256³ + b3/256⁴      // 0 ≤ float < 1
 
-Crash / Limbo: max(1, floor(0,99 / (1 − float) · 100) / 100)
-Mines:         Fisher-Yates-Mischung der 25 Felder
-Plinko:        pro Reihe float < 0,5 → links, sonst rechts`}
+Crash / Limbo: max(1, floor(0.99 / (1 − float) · 100) / 100)
+Mines:         Fisher-Yates shuffle of the 25 tiles
+Plinko:        per row float < 0.5 → left, otherwise right`}
       </pre>
       <p className="mt-3 text-xs text-zinc-500">
-        Demo-Hinweis: Hier läuft der „Server“ im Browser. In einer echten Anwendung bleibt der Server-Seed bis zur
-        Rotation auf dem Server.
+        Demo note: here the “server” runs in your browser. In a real application the server seed stays on the server
+        until it is rotated.
       </p>
     </Panel>
   );

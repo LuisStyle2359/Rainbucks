@@ -1,11 +1,11 @@
 /**
- * Partikelsystem für Canvas-Effekte (Explosion, Raketenabgas, Funken).
+ * Particle system for canvas effects (explosion, rocket exhaust, sparks).
  *
- * Performance-Tricks:
- * - Struct of Arrays: alle Werte in vorab angelegten Float32Arrays.
- *   Keine Objekte pro Partikel → kein Garbage Collector während der Animation.
- * - Glow-Sprites: jede Farbe wird einmal als weicher Leuchtpunkt vorgerendert
- *   und danach nur noch per drawImage gestempelt (viel schneller als shadowBlur).
+ * Performance tricks:
+ * - Struct of arrays: every value lives in a preallocated Float32Array.
+ *   No object per particle → no garbage collection during animations.
+ * - Glow sprites: each color is pre-rendered once as a soft glowing dot and
+ *   then stamped with drawImage (much faster than shadowBlur).
  */
 export class ParticleSystem {
   private readonly x: Float32Array;
@@ -51,7 +51,7 @@ export class ParticleSystem {
     this.color[i] = color;
   }
 
-  /** Explosion: Partikel fliegen radial auseinander. */
+  /** Explosion: particles fly apart radially. */
   burst(x: number, y: number, amount: number, speed: number, colors: readonly number[]): void {
     for (let n = 0; n < amount; n++) {
       const angle = Math.random() * Math.PI * 2;
@@ -68,7 +68,7 @@ export class ParticleSystem {
     }
   }
 
-  /** gravity in px/s², drag = Geschwindigkeitsverlust pro Sekunde (0…1). */
+  /** gravity in px/s², drag = share of velocity lost per second (0…1). */
   update(dt: number, gravity: number, drag: number): void {
     const damping = Math.pow(1 - drag, dt);
     for (let i = 0; i < this.count; i++) {
@@ -116,7 +116,7 @@ export class ParticleSystem {
   }
 }
 
-/** Weicher Leuchtpunkt: weißer Kern → Farbe → transparent. */
+/** Soft glowing dot: white core → color → transparent. */
 export function createGlowSprite(color: string): HTMLCanvasElement {
   const size = 64;
   const canvas = document.createElement("canvas");

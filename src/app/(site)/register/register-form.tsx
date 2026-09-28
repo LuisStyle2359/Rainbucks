@@ -27,7 +27,7 @@ export function RegisterForm() {
         defaultValue={state.fields?.name}
       />
       <Field
-        label="E-Mail"
+        label="Email"
         name="email"
         type="email"
         autoComplete="email"
@@ -35,14 +35,14 @@ export function RegisterForm() {
         defaultValue={state.fields?.email}
       />
       <Field
-        label="Passwort (mind. 8 Zeichen)"
+        label="Password (at least 8 characters)"
         name="password"
         type="password"
         autoComplete="new-password"
         required
         minLength={8}
       />
-      <SubmitButton pending={pending}>Registrieren</SubmitButton>
+      <SubmitButton pending={pending}>Sign up</SubmitButton>
     </form>
   );
 }

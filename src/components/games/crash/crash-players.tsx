@@ -9,7 +9,7 @@ import type { CrashPlayer, CrashSnapshot } from "@/lib/games/crash/crash-engine"
 const byRelevance = (a: CrashPlayer, b: CrashPlayer) =>
   Number(b.isYou) - Number(a.isYou) || b.amount - a.amount;
 
-/** Live-Liste der Spieler in der aktuellen Runde (simuliert). */
+/** Live list of the players in the current round (simulated). */
 export function CrashPlayers({ snapshot }: { snapshot: CrashSnapshot }) {
   const players = [...snapshot.players].sort(byRelevance);
   const total = players.reduce((sum, p) => sum + p.amount, 0);
@@ -19,7 +19,7 @@ export function CrashPlayers({ snapshot }: { snapshot: CrashSnapshot }) {
     <section className="glass glass-edge rounded-2xl p-4">
       <header className="mb-3 flex items-center justify-between text-xs uppercase tracking-widest text-zinc-500">
         <span>
-          Spieler <span className="text-zinc-200">{players.length}</span>
+          Players <span className="text-zinc-200">{players.length}</span>
         </span>
         <span className="flex items-center gap-1.5 font-mono normal-case tracking-normal text-zinc-300">
           <Coin className="size-3.5" />
@@ -29,7 +29,7 @@ export function CrashPlayers({ snapshot }: { snapshot: CrashSnapshot }) {
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-x-4 px-2 pb-2 text-[11px] uppercase tracking-widest text-zinc-600">
         <span>Name</span>
-        <span className="text-right">Einsatz</span>
+        <span className="text-right">Bet</span>
         <span className="w-20 text-right">Cashout</span>
       </div>
 
@@ -57,7 +57,7 @@ export function CrashPlayers({ snapshot }: { snapshot: CrashSnapshot }) {
                     style={{ backgroundColor: player.user.color, boxShadow: `0 0 8px ${player.user.color}` }}
                   />
                   <span className={cn("truncate", player.isYou ? "font-semibold text-white" : "text-zinc-300")}>
-                    {player.isYou ? `${player.user.name} (du)` : player.user.name}
+                    {player.isYou ? `${player.user.name} (you)` : player.user.name}
                   </span>
                 </span>
                 <span className="font-mono text-xs text-zinc-400 tabular">{formatAmount(player.amount)}</span>

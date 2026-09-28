@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-// Supabase-Client für Server Components, Server Actions und Route Handler.
-// Er liest und schreibt die Login-Session über Cookies.
+// Supabase client for Server Components, Server Actions and Route Handlers.
+// It reads and writes the login session via cookies.
 export async function createClient() {
   const cookieStore = await cookies();
 
@@ -20,8 +20,8 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // In Server Components dürfen keine Cookies gesetzt werden.
-            // Das ist ok: src/proxy.ts erneuert die Session bei jeder Anfrage.
+            // Server Components may not set cookies.
+            // That is fine: src/proxy.ts refreshes the session on every request.
           }
         },
       },

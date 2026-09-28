@@ -3,18 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AutoBetConfig {
-  /** Anzahl Runden, 0 = unbegrenzt */
+  /** Number of rounds, 0 = unlimited */
   rounds: number;
-  /** Stopp, sobald der Gewinn (Cent) diesen Wert erreicht */
+  /** Stop as soon as the profit (cents) reaches this value */
   stopOnProfit: number | null;
-  /** Stopp, sobald der Verlust (Cent) diesen Wert erreicht */
+  /** Stop as soon as the loss (cents) reaches this value */
   stopOnLoss: number | null;
 }
 
 export interface AutoBetState {
   running: boolean;
   played: number;
-  /** Summe aus Gewinn und Verlust dieser Auto-Session in Cent */
+  /** Net profit of this auto session in cents */
   profit: number;
   rounds: number;
 }
@@ -26,15 +26,15 @@ export interface AutoBetControls extends AutoBetState {
 
 interface UseAutoBetOptions {
   /**
-   * Spielt eine Runde und liefert den Profit in Cent (Auszahlung − Einsatz),
-   * oder null, wenn keine Wette möglich war (z. B. zu wenig Guthaben).
+   * Plays one round and returns the profit in cents (payout − stake),
+   * or null if no bet was possible (e.g. balance too low).
    */
   run: () => Promise<number | null>;
   /** Pause zwischen zwei Runden in ms */
   delayMs: number;
   /**
-   * sequential: nächste Runde erst nach Abrechnung (Limbo, Mines, Crash)
-   * interval:   neue Runde alle delayMs, Abrechnung läuft parallel (Plinko-Kugeln)
+   * sequential: next round only after settling (Limbo, Mines, Crash)
+   * interval:   new round every delayMs, settling runs in parallel (Plinko balls)
    */
   mode?: "sequential" | "interval";
 }
@@ -52,7 +52,7 @@ export function useAutoBet({ run, delayMs, mode = "sequential" }: UseAutoBetOpti
     delayRef.current = delayMs;
   });
 
-  // Beim Verlassen der Seite läuft keine Auto-Bet-Session weiter.
+  // No auto bet session keeps running after leaving the page.
   useEffect(() => {
     const sessions = sessionRef;
     return () => {
@@ -80,7 +80,7 @@ export function useAutoBet({ run, delayMs, mode = "sequential" }: UseAutoBetOpti
         setState((current) => ({ ...current, running: false }));
       };
 
-      /** Verbucht ein Ergebnis. Gibt zurück, ob weitergespielt werden soll. */
+      /** Books a result. Returns whether to keep playing. */
       const account = (result: number | null): boolean => {
         if (result === null) return false;
         played++;
@@ -104,7 +104,7 @@ export function useAutoBet({ run, delayMs, mode = "sequential" }: UseAutoBetOpti
         return;
       }
 
-      // interval: Kugeln fallen im Takt, Ergebnisse kommen später an
+      // interval: balls drop on a beat, results arrive later
       let launched = 0;
       let inFlight = 0;
       const launch = () => {

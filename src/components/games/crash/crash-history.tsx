@@ -11,12 +11,12 @@ export function crashTone(crashPoint: number): string {
   return "border-neon-red/35 bg-neon-red/10 text-neon-red";
 }
 
-/** Letzte Crash-Punkte. Neue Chips schieben die alten per Layout-Animation weiter. */
+/** Recent crash points. New chips push the old ones along with a layout animation. */
 export function CrashHistory({ history }: { history: CrashSnapshot["history"] }) {
   return (
-    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none" aria-label="Letzte Runden">
+    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none" aria-label="Recent rounds">
       {history.length === 0 && (
-        <span className="text-xs uppercase tracking-widest text-zinc-600">Noch keine Runden gespielt</span>
+        <span className="text-xs uppercase tracking-widest text-zinc-600">No rounds played yet</span>
       )}
       <AnimatePresence initial={false} mode="popLayout">
         {history.slice(0, 18).map((round) => (
@@ -27,7 +27,7 @@ export function CrashHistory({ history }: { history: CrashSnapshot["history"] })
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 0.6 }}
             transition={{ type: "spring", stiffness: 500, damping: 34 }}
-            title={`Runde ${round.roundId} · Nonce ${round.nonce}`}
+            title={`Round ${round.roundId} · Nonce ${round.nonce}`}
             className={cn(
               "shrink-0 rounded-lg border px-2.5 py-1 font-mono text-xs font-semibold tabular",
               crashTone(round.crashPoint),

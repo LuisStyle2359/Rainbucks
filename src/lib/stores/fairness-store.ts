@@ -9,13 +9,13 @@ export interface RevealedSeed {
   serverSeed: string;
   serverSeedHash: string;
   clientSeed: string;
-  /** Anzahl der Wetten, die mit diesem Seed-Paar gespielt wurden. */
+  /** Number of bets played with this seed pair. */
   nonce: number;
   revealedAt: number;
 }
 
 interface FairnessData {
-  /** Geheim bis zur Rotation (simulierter Server). */
+  /** Secret until rotation (simulated server). */
   serverSeed: string;
   serverSeedHash: string;
   clientSeed: string;
@@ -26,9 +26,9 @@ interface FairnessData {
 export type RoundSeeds = SeedPair & PublicSeeds;
 
 interface FairnessActions {
-  /** Liefert die Seeds für die nächste Wette und erhöht die Nonce. */
+  /** Returns the seeds for the next bet and increments the nonce. */
   consume: () => RoundSeeds;
-  /** Legt den aktuellen Server-Seed offen und startet ein neues Seed-Paar. */
+  /** Reveals the current server seed and starts a new seed pair. */
   rotate: (nextClientSeed?: string) => RevealedSeed;
 }
 
@@ -98,7 +98,7 @@ export const useFairnessStore = create<FairnessState>()(
   ),
 );
 
-/** Kurzform für Spiel-Engines außerhalb von React. */
+/** Shorthand for game engines outside of React. */
 export const consumeSeeds = (): RoundSeeds => useFairnessStore.getState().consume();
 
 export const toPublicSeeds = ({ serverSeedHash, clientSeed, nonce }: RoundSeeds): PublicSeeds => ({

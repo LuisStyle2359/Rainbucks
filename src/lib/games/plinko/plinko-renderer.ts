@@ -1,35 +1,71 @@
-import { ParticleSystem, createGlowSprite } from "@/lib/canvas/particles";
+import { ParticleSystem, createGlowSprite, withAlpha } from "@/lib/canvas/particles";
+import type { ScreenPoint } from "@/lib/casino/celebrations";
 import { BALL_RADIUS, PEG_GAP, PEG_RADIUS, type PlinkoWorld } from "./plinko-physics";
 
 const TOXIC = "#39ff14";
 const WHITE = "#ffffff";
+const GOLD = "#ffd23f";
+const RED = "#ff2d55";
+const CYAN = "#7cf5ff";
+const PINK = "#ff4fd8";
+/** Every ball gets its own neon color, so a stream of balls reads as a light show */
+const BALL_COLORS = [TOXIC, CYAN, PINK, GOLD] as const;
+// Particle palette indices
+const P_TOXIC = 0;
+const P_WHITE = 1;
+const P_GOLD = 2;
+const P_RED = 3;
+const P_CYAN = 4;
+const P_PINK = 5;
+
 const PEG_GLOW_MS = 420;
 const BIN_BOUNCE_MS = 380;
+const LABEL_MS = 1100;
+const RING_MS = 650;
 
-/** Fachfarbe von Rot (kleinster Multiplikator) bis Toxic-Grün (größter). */
+/** Slot color from red (smallest multiplier) to toxic green (largest). */
 export function binColor(multiplier: number, min: number, max: number): string {
   const t = max > min ? Math.log(multiplier / min) / Math.log(max / min) : 1;
   const hue = (350 + t * 115) % 360;
   return `hsl(${hue.toFixed(0)} 100% ${(52 + t * 4).toFixed(0)}%)`;
 }
 
+interface FloatingLabel {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  born: number;
+  size: number;
+}
+
+interface Ring {
+  x: number;
+  y: number;
+  color: string;
+  born: number;
+  radius: number;
+}
+
 /**
- * Zeichnet das Plinko-Brett. Statische Pins liegen in einem Offscreen-Canvas,
- * pro Frame kommen nur leuchtende Pins, Kugeln, Fächer und Funken dazu.
- * Ohne Bewegung wird nichts neu gezeichnet (spart Akku).
+ * Draws the Plinko board. Static pins live in an offscreen canvas; each frame
+ * only adds glowing pins, balls, slots, sparks, rings and floating labels.
+ * Nothing is redrawn while nothing moves (saves battery).
  */
 export class PlinkoRenderer<T> {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly staticLayer: HTMLCanvasElement;
   private readonly particles: ParticleSystem;
   private readonly glowToxic: HTMLCanvasElement;
-  private readonly glowWhite: HTMLCanvasElement;
+  private readonly ballGlows: HTMLCanvasElement[];
   private readonly resizeObserver: ResizeObserver;
   private readonly font: string;
 
   private multipliers: readonly number[] = [];
   private binHitAt: number[] = [];
   private binColors: string[] = [];
+  private labels: FloatingLabel[] = [];
+  private rings: Ring[] = [];
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -44,12 +80,12 @@ export class PlinkoRenderer<T> {
     private readonly world: PlinkoWorld<T>,
   ) {
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D wird nicht unterstützt.");
+    if (!ctx) throw new Error("Canvas 2D is not supported.");
     this.ctx = ctx;
     this.staticLayer = document.createElement("canvas");
-    this.particles = new ParticleSystem(600, [TOXIC, WHITE, "#ffd23f", "#ff2d55"]);
+    this.particles = new ParticleSystem(900, [TOXIC, WHITE, GOLD, RED, CYAN, PINK]);
     this.glowToxic = createGlowSprite(TOXIC);
-    this.glowWhite = createGlowSprite("#d9ffd0");
+    this.ballGlows = BALL_COLORS.map(createGlowSprite);
     this.font =
       getComputedStyle(document.documentElement).getPropertyValue("--font-geist-mono").trim() ||
       "ui-monospace, monospace";
@@ -69,7 +105,7 @@ export class PlinkoRenderer<T> {
     this.resizeObserver.disconnect();
   }
 
-  /** Neue Reihen/Risiko → Fächer neu beschriften. */
+  /** New rows/risk → relabel the slots. */
   setMultipliers(multipliers: readonly number[]): void {
     this.multipliers = multipliers;
     this.binHitAt = multipliers.map(() => -Infinity);
@@ -80,12 +116,44 @@ export class PlinkoRenderer<T> {
     this.dirty = true;
   }
 
-  /** Kugel ist gelandet: Fach hüpft, Funken sprühen. */
+  /** A ball landed: the slot bounces, sparks fly, real wins float up. */
   landed(bin: number, x: number, y: number): void {
-    this.binHitAt[bin] = this.world.time;
-    const big = (this.multipliers[bin] ?? 0) >= 1;
-    this.particles.burst(x, y, big ? 26 : 10, big ? 260 : 140, big ? [0, 1, 2] : [3, 1]);
+    const time = this.world.time;
+    const multiplier = this.multipliers[bin] ?? 0;
+    const color = this.binColors[bin] ?? TOXIC;
+    this.binHitAt[bin] = time;
+
+    if (multiplier >= 10) {
+      this.particles.burst(x, y, 70, 420, [P_GOLD, P_WHITE, P_TOXIC, P_PINK]);
+      this.rings.push({ x, y, color: GOLD, born: time, radius: PEG_GAP * 2.4 });
+      this.rings.push({ x, y, color: WHITE, born: time + 90, radius: PEG_GAP * 1.4 });
+    } else if (multiplier >= 2) {
+      this.particles.burst(x, y, 34, 300, [P_TOXIC, P_WHITE, P_CYAN, P_GOLD]);
+      this.rings.push({ x, y, color: TOXIC, born: time, radius: PEG_GAP * 1.3 });
+    } else if (multiplier >= 1) {
+      this.particles.burst(x, y, 16, 180, [P_TOXIC, P_WHITE]);
+    } else {
+      this.particles.burst(x, y, 10, 140, [P_RED, P_WHITE]);
+    }
+
+    // Only real wins get a floating label; losses stay quiet.
+    if (multiplier >= 2) {
+      this.labels.push({
+        x,
+        y: y - PEG_GAP * 0.4,
+        text: formatBin(multiplier),
+        color: multiplier >= 10 ? GOLD : color,
+        born: time,
+        size: multiplier >= 10 ? 30 : 22,
+      });
+    }
     this.dirty = true;
+  }
+
+  /** Board coordinates → viewport coordinates (for coins flying to the balance). */
+  toClient(x: number, y: number): ScreenPoint {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: rect.left + x * this.scale, y: rect.top + y * this.scale };
   }
 
   // ---------------------------------------------------------------------------
@@ -110,8 +178,11 @@ export class PlinkoRenderer<T> {
     const ctx = layer.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(this.dpr * this.scale, 0, 0, this.dpr * this.scale, 0, 0);
-    ctx.fillStyle = "rgba(255,255,255,0.82)";
     for (const peg of geometry.pegs) {
+      const gradient = ctx.createRadialGradient(peg.x - 2, peg.y - 2, 0.5, peg.x, peg.y, PEG_RADIUS);
+      gradient.addColorStop(0, "#ffffff");
+      gradient.addColorStop(1, "rgba(200,215,230,0.7)");
+      ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(peg.x, peg.y, PEG_RADIUS, 0, Math.PI * 2);
       ctx.fill();
@@ -124,7 +195,7 @@ export class PlinkoRenderer<T> {
     const dt = this.lastTime ? Math.min(50, now - this.lastTime) : 16.7;
     this.lastTime = now;
 
-    // Die Welt tickt immer weiter, damit Glow- und Hüpf-Animationen auslaufen.
+    // The world keeps ticking so glow and bounce animations can finish.
     this.world.step(dt);
     const busy = this.world.balls.length > 0 || this.particles.active > 0 || this.animating();
     if (busy || this.dirty) {
@@ -137,6 +208,9 @@ export class PlinkoRenderer<T> {
 
   private animating(): boolean {
     const time = this.world.time;
+    this.labels = this.labels.filter((label) => time - label.born < LABEL_MS);
+    this.rings = this.rings.filter((ring) => time - ring.born < RING_MS);
+    if (this.labels.length > 0 || this.rings.length > 0) return true;
     if (this.binHitAt.some((hit) => time - hit < BIN_BOUNCE_MS)) return true;
     for (const hit of this.world.pegHitAt) if (time - hit < PEG_GLOW_MS) return true;
     return false;
@@ -150,7 +224,7 @@ export class PlinkoRenderer<T> {
     ctx.drawImage(this.staticLayer, 0, 0);
     ctx.setTransform(this.dpr * this.scale, 0, 0, this.dpr * this.scale, 0, 0);
 
-    // Leuchtende Pins nach einem Treffer
+    // Pins light up after a hit
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     geometry.pegs.forEach((peg, index) => {
@@ -164,31 +238,34 @@ export class PlinkoRenderer<T> {
     ctx.restore();
 
     this.drawBins();
+    this.drawRings();
 
-    // Kugeln mit Leuchtspur
+    // Balls with light trails, each in its own color
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     for (const ball of world.balls) {
+      const glowSprite = this.ballGlows[ball.id % BALL_COLORS.length];
       const trail = ball.trail;
       const points = trail.length / 2;
       for (let i = 0; i < points - 1; i++) {
         const t = (i + 1) / points;
-        const size = BALL_RADIUS * 2.6 * t;
-        ctx.globalAlpha = t * 0.35;
-        ctx.drawImage(this.glowToxic, trail[i * 2] - size / 2, trail[i * 2 + 1] - size / 2, size, size);
+        const size = BALL_RADIUS * 2.8 * t;
+        ctx.globalAlpha = t * 0.4;
+        ctx.drawImage(glowSprite, trail[i * 2] - size / 2, trail[i * 2 + 1] - size / 2, size, size);
       }
       const { x, y } = ball.body.position;
-      const glow = BALL_RADIUS * 4.4;
-      ctx.globalAlpha = 0.9;
-      ctx.drawImage(this.glowToxic, x - glow / 2, y - glow / 2, glow, glow);
+      const glow = BALL_RADIUS * 4.8;
+      ctx.globalAlpha = 0.95;
+      ctx.drawImage(glowSprite, x - glow / 2, y - glow / 2, glow, glow);
     }
     ctx.restore();
     for (const ball of world.balls) {
+      const color = BALL_COLORS[ball.id % BALL_COLORS.length];
       const { x, y } = ball.body.position;
       const gradient = ctx.createRadialGradient(x - 4, y - 4, 1, x, y, BALL_RADIUS);
       gradient.addColorStop(0, "#ffffff");
-      gradient.addColorStop(0.55, "#c9ffbd");
-      gradient.addColorStop(1, TOXIC);
+      gradient.addColorStop(0.5, withAlpha(color, 0.9));
+      gradient.addColorStop(1, color);
       ctx.fillStyle = gradient;
       ctx.beginPath();
       ctx.arc(x, y, BALL_RADIUS * 0.82, 0, Math.PI * 2);
@@ -196,6 +273,7 @@ export class PlinkoRenderer<T> {
     }
 
     this.particles.draw(ctx);
+    this.drawLabels();
   }
 
   private drawBins(): void {
@@ -219,12 +297,19 @@ export class PlinkoRenderer<T> {
       const color = this.binColors[bin];
 
       ctx.shadowColor = color;
-      ctx.shadowBlur = 10 + bounce * 26;
+      ctx.shadowBlur = 10 + bounce * 30;
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.9 + bounce * 0.1;
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, 6);
       ctx.fill();
+      // White flash on impact
+      if (bounce > 0) {
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = bounce * 0.55;
+        ctx.fillStyle = WHITE;
+        ctx.fill();
+      }
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
       ctx.fillStyle = "rgba(0,0,0,0.82)";
@@ -232,9 +317,55 @@ export class PlinkoRenderer<T> {
     });
     ctx.restore();
   }
+
+  private drawRings(): void {
+    const { ctx } = this;
+    const time = this.world.time;
+    if (this.rings.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    for (const ring of this.rings) {
+      const age = time - ring.born;
+      if (age < 0) continue;
+      const t = age / RING_MS;
+      const eased = 1 - (1 - t) ** 3;
+      ctx.globalAlpha = (1 - t) * 0.9;
+      ctx.strokeStyle = ring.color;
+      ctx.lineWidth = 5 * (1 - t) + 1;
+      ctx.beginPath();
+      ctx.arc(ring.x, ring.y, ring.radius * eased, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private drawLabels(): void {
+    const { ctx } = this;
+    const time = this.world.time;
+    if (this.labels.length === 0) return;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const label of this.labels) {
+      const t = (time - label.born) / LABEL_MS;
+      // Pops in, then drifts up and fades out
+      const pop = t < 0.15 ? 0.6 + (t / 0.15) * 0.55 : 1.15 - Math.min(0.15, (t - 0.15) * 0.4);
+      const y = label.y - t * PEG_GAP * 1.6;
+      ctx.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3;
+      ctx.font = `800 ${label.size * pop}px ${this.font}`;
+      ctx.shadowColor = label.color;
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0,0,0,0.75)";
+      ctx.strokeText(label.text, label.x, y);
+      ctx.fillStyle = label.color;
+      ctx.fillText(label.text, label.x, y);
+    }
+    ctx.restore();
+  }
 }
 
 function formatBin(multiplier: number): string {
   if (multiplier >= 100) return `${multiplier}`;
-  return `${multiplier.toLocaleString("de-DE", { maximumFractionDigits: 1 })}×`;
+  return `${multiplier.toLocaleString("en-US", { maximumFractionDigits: 1 })}×`;
 }

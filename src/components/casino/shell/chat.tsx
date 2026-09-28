@@ -19,7 +19,7 @@ export function Chat() {
   const stickToBottom = useRef(true);
   const lastSent = useRef(0);
 
-  // Automatisch mitscrollen, außer der Nutzer liest gerade weiter oben
+  // Keep scrolling along, unless the user is reading further up
   useEffect(() => {
     const list = listRef.current;
     if (list && stickToBottom.current) list.scrollTop = list.scrollHeight;
@@ -69,7 +69,7 @@ export function Chat() {
                 {message.user.name}
               </span>
               <span className="rounded bg-white/[0.06] px-1 font-mono text-[9px] text-zinc-500">
-                {message.user.isYou ? "DU" : `LV ${message.user.level}`}
+                {message.user.isYou ? `YOU · LV ${message.user.level}` : `LV ${message.user.level}`}
               </span>
             </div>
             <p className="break-words text-zinc-300">{message.text}</p>
@@ -88,13 +88,13 @@ export function Chat() {
           value={text}
           maxLength={MAX_LENGTH}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Nachricht schreiben …"
-          aria-label="Chat-Nachricht"
+          placeholder="Write a message …"
+          aria-label="Chat message"
           className="h-10 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-black/50 px-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-toxic/60"
         />
         <button
           type="submit"
-          aria-label="Senden"
+          aria-label="Send"
           disabled={!text.trim()}
           className="grid size-10 place-items-center rounded-lg bg-toxic text-black shadow-glow-toxic transition disabled:opacity-30 disabled:shadow-none"
         >

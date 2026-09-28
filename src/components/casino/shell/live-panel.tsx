@@ -12,7 +12,7 @@ import { LiveFeed } from "./live-feed";
 type Tab = "chat" | "bets";
 const TABS = [
   { value: "chat", label: "Chat" },
-  { value: "bets", label: "Live-Wetten" },
+  { value: "bets", label: "Live bets" },
 ] as const satisfies readonly { value: Tab; label: string }[];
 
 function PanelContent({ layoutId, onClose }: { layoutId: string; onClose?: () => void }) {
@@ -27,7 +27,7 @@ function PanelContent({ layoutId, onClose }: { layoutId: string; onClose?: () =>
         {onClose && (
           <button
             type="button"
-            aria-label="Schließen"
+            aria-label="Close"
             onClick={onClose}
             className="glass grid size-9 place-items-center rounded-lg text-zinc-300 hover:text-white"
           >
@@ -37,15 +37,15 @@ function PanelContent({ layoutId, onClose }: { layoutId: string; onClose?: () =>
       </div>
       <div className="flex items-center gap-2 px-4 py-2 text-[11px] text-zinc-500">
         <span className={connected ? "size-1.5 rounded-full bg-toxic shadow-[0_0_8px_#39ff14]" : "size-1.5 rounded-full bg-zinc-600"} />
-        {connected ? `${online.toLocaleString("de-DE")} Spieler online` : "Verbinde …"}
-        <span className="ml-auto rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] uppercase tracking-widest">simuliert</span>
+        {connected ? `${online.toLocaleString("en-US")} players online` : "Connecting …"}
+        <span className="ml-auto rounded bg-white/[0.05] px-1.5 py-0.5 text-[9px] uppercase tracking-widest">simulated</span>
       </div>
       {tab === "chat" ? <Chat /> : <LiveFeed />}
     </div>
   );
 }
 
-/** Feste Seitenleiste ab 1280px Breite. */
+/** Fixed sidebar from 1280px width. */
 export function LivePanel() {
   const open = useSettingsStore((s) => s.livePanelOpen);
   return (
@@ -58,7 +58,7 @@ export function LivePanel() {
           exit={{ width: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 40 }}
           className="sticky top-16 hidden h-[calc(100dvh-4rem)] shrink-0 overflow-hidden border-l border-white/[0.06] xl:block"
-          aria-label="Live-Chat und Wetten"
+          aria-label="Live chat and bets"
         >
           <div className="h-full w-80">
             <PanelContent layoutId="live-tab-desktop" />
@@ -69,7 +69,7 @@ export function LivePanel() {
   );
 }
 
-/** Schublade für Handy und Tablet. */
+/** Drawer for phones and tablets. */
 export function LiveDrawer() {
   const open = useUiStore((s) => s.mobileLiveOpen);
   const close = () => useUiStore.getState().setMobileLiveOpen(false);
@@ -79,7 +79,7 @@ export function LiveDrawer() {
         <div className="fixed inset-0 z-[60] xl:hidden">
           <motion.button
             type="button"
-            aria-label="Schließen"
+            aria-label="Close"
             onClick={close}
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             initial={{ opacity: 0 }}
@@ -88,7 +88,7 @@ export function LiveDrawer() {
           />
           <motion.aside
             role="dialog"
-            aria-label="Live-Chat und Wetten"
+            aria-label="Live chat and bets"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

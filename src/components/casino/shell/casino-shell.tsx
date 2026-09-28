@@ -2,6 +2,8 @@
 
 import { MotionConfig } from "motion/react";
 import type { ReactNode } from "react";
+import { BonusWheelDialog } from "@/components/casino/bonus/bonus-wheel";
+import { CelebrationLayer } from "@/components/casino/celebrations/celebration-layer";
 import { LiveDrawer, LivePanel } from "./live-panel";
 import { AmbientLight, ShellSkeleton } from "./shell-parts";
 import { SideNav } from "./side-nav";
@@ -14,9 +16,9 @@ export interface ShellUser {
 }
 
 /**
- * Rahmen des Casinos: Top-Bar, Navigation, Live-Panel.
- * Lädt zuerst Guthaben & Seeds des Nutzers aus dem localStorage und rendert
- * die Spiele erst danach, damit nie ein Standardwert gespeicherte Daten überschreibt.
+ * Casino frame: top bar, navigation, live panel, win celebrations, bonus wheel.
+ * Loads the user's balance and seeds from localStorage first and only then
+ * renders the games, so a default value never overwrites saved data.
  */
 export function CasinoShell({ user, children }: { user: ShellUser; children: ReactNode }) {
   const ready = useCasinoRuntime(user.id, user.name);
@@ -34,6 +36,8 @@ export function CasinoShell({ user, children }: { user: ShellUser; children: Rea
           <LivePanel />
         </div>
         <LiveDrawer />
+        {ready && <BonusWheelDialog />}
+        <CelebrationLayer />
       </div>
     </MotionConfig>
   );

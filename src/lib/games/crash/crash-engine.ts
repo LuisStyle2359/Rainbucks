@@ -4,16 +4,16 @@ import { nextId, randomBotAmount, randomBotUser, randomCrashTarget, randomInt } 
 import type { ChatUser } from "@/lib/realtime/types";
 
 /**
- * Crash-Runden als Zustandsautomat:
+ * Crash rounds as a state machine:
  *
- *   betting (6 s Countdown) → running (Multiplikator steigt) → crashed (3,5 s) → betting …
+ *   betting (6 s countdown) → running (multiplier climbs) → crashed (3.5 s) → betting …
  *
- * Der Multiplikator wächst exponentiell: M(t) = e^(k·t), k = ln(2) / 10 s.
- * Nach 10 s steht er bei 2×, nach 20 s bei 4×, nach 33 s bei 10×.
- * Der Crash-Punkt stammt aus dem Provably-Fair-System und steht beim Start fest.
+ * The multiplier grows exponentially: M(t) = e^(k·t), k = ln(2) / 10 s.
+ * After 10 s it reads 2×, after 20 s 4×, after 33 s 10×.
+ * The crash point comes from the provably fair system and is fixed at the start.
  *
- * Alles basiert auf Zeitstempeln statt auf Frame-Zählern. Dadurch stimmt jeder
- * Cashout exakt, auch wenn der Tab im Hintergrund gedrosselt wird.
+ * Everything runs on timestamps instead of frame counters, so every cashout
+ * is exact even when a background tab gets throttled.
  */
 
 export const GROWTH_PER_MS = Math.LN2 / 10_000;
@@ -27,7 +27,7 @@ export interface CrashPlayer {
   id: string;
   user: ChatUser;
   amount: number;
-  /** Auto-Cashout-Ziel (null = manuell) */
+  /** Auto cashout target (null = manual) */
   target: number | null;
   cashedOutAt: number | null;
   isYou: boolean;
@@ -47,11 +47,11 @@ export interface CrashMyBet {
 export interface CrashSnapshot {
   roundId: number;
   phase: CrashPhase;
-  /** Alle Zeiten als performance.now()-Zeitstempel */
+  /** All times are performance.now() timestamps */
   bettingEndsAt: number;
   runningStartedAt: number;
   crashedAt: number;
-  /** Erst nach dem Crash bekannt */
+  /** Only known after the crash */
   crashPoint: number | null;
   players: CrashPlayer[];
   history: { roundId: number; crashPoint: number; nonce: number }[];
@@ -63,7 +63,7 @@ export interface CrashSettlement {
   status: "cashed" | "lost" | "refunded";
   amount: number;
   multiplier: number;
-  /** Auszahlung − Einsatz in Cent */
+  /** Payout − stake in cents */
   profit: number;
 }
 
@@ -120,7 +120,7 @@ export class CrashEngine {
   private readonly timers = new Set<ReturnType<typeof setTimeout>>();
   private started = false;
 
-  // Geheim bis zum Crash
+  // Secret until the crash
   private crashPoint = 1;
   private crashAt = 0;
   private roundSeeds: (SeedPair & PublicSeeds) | null = null;
@@ -131,7 +131,7 @@ export class CrashEngine {
   constructor(private readonly deps: CrashEngineDeps) {}
 
   // ---------------------------------------------------------------------------
-  // React-Anbindung (useSyncExternalStore)
+  // React binding (useSyncExternalStore)
   // ---------------------------------------------------------------------------
 
   subscribe = (listener: () => void): (() => void) => {
@@ -141,7 +141,7 @@ export class CrashEngine {
 
   getSnapshot = (): CrashSnapshot => this.snapshot;
 
-  /** Aktueller Multiplikator für das Rendering (60–120 × pro Sekunde). */
+  /** Current multiplier for rendering (60–120 times per second). */
   getMultiplier(now: number): number {
     const { phase, runningStartedAt } = this.snapshot;
     if (phase === "betting") return 1;
@@ -150,7 +150,7 @@ export class CrashEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Lebenszyklus
+  // Lifecycle
   // ---------------------------------------------------------------------------
 
   start(): void {
@@ -159,7 +159,7 @@ export class CrashEngine {
     this.beginBetting();
   }
 
-  /** Stoppt alle Timer und rechnet offene Wetten sauber ab. */
+  /** Stops all timers and settles open bets cleanly. */
   stop(): void {
     if (!this.started) return;
     this.started = false;
@@ -170,7 +170,7 @@ export class CrashEngine {
       this.deps.refund(myBet.amount);
       this.resolveMine({ status: "refunded", amount: myBet.amount, multiplier: 0, profit: 0 });
     } else if (myBet && myBet.status === "active" && phase === "running") {
-      // Seite verlassen: Die Runde läuft weiter. Auto-Cashout greift, sonst verloren.
+      // Page left: the round keeps going. Auto cashout applies, otherwise the bet is lost.
       const target = myBet.autoCashout;
       if (target !== null && target <= this.crashPoint) this.cashOutMine(target);
       else this.loseMine();
@@ -184,12 +184,12 @@ export class CrashEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Spieler-Aktionen
+  // Player actions
   // ---------------------------------------------------------------------------
 
   /**
-   * Wette platzieren. In der Countdown-Phase gilt sie für diese Runde,
-   * sonst für die nächste. Liefert ein Promise, das nach der Abrechnung erfüllt wird.
+   * Place a bet. During the countdown it counts for this round, otherwise
+   * for the next one. Returns a promise that resolves once the bet is settled.
    */
   placeBet(amount: number, autoCashout: number | null): Promise<CrashSettlement> | null {
     const { phase, myBet, queuedBet } = this.snapshot;
@@ -217,7 +217,7 @@ export class CrashEngine {
     return null;
   }
 
-  /** Wette zurückziehen, solange die Runde noch nicht läuft. */
+  /** Withdraw a bet while the round has not started yet. */
   cancelBet(): void {
     const { phase, myBet, queuedBet } = this.snapshot;
     if (queuedBet) {
@@ -234,18 +234,18 @@ export class CrashEngine {
     }
   }
 
-  /** Manueller Cashout zum aktuellen Multiplikator. */
+  /** Manual cashout at the current multiplier. */
   cashOut(now: number = performance.now()): boolean {
     const { phase, myBet, runningStartedAt } = this.snapshot;
     if (phase !== "running" || myBet?.status !== "active") return false;
-    if (now >= this.crashAt) return false; // zu spät, die Rakete ist schon explodiert
+    if (now >= this.crashAt) return false; // too late, the rocket already exploded
     const multiplier = Math.min(this.crashPoint, floorMultiplier(multiplierAt(now - runningStartedAt)));
     this.cashOutMine(multiplier);
     return true;
   }
 
   // ---------------------------------------------------------------------------
-  // Phasen
+  // Phases
   // ---------------------------------------------------------------------------
 
   private beginBetting(): void {
@@ -273,7 +273,7 @@ export class CrashEngine {
     });
     this.emit({ type: "betting" });
 
-    // Bots steigen nach und nach ein
+    // Bots join one by one
     const botCount = randomInt(5, 14);
     for (let i = 0; i < botCount; i++) {
       this.after(randomInt(0, BETTING_MS - 400), () => {
@@ -304,7 +304,7 @@ export class CrashEngine {
     });
     this.emit({ type: "running" });
 
-    // Auto-Cashouts planen (eigener und Bots)
+    // Schedule auto cashouts (yours and the bots)
     if (myBet?.autoCashout && myBet.autoCashout <= this.crashPoint) {
       const target = myBet.autoCashout;
       this.after(timeForMultiplier(target), () => {
@@ -325,7 +325,7 @@ export class CrashEngine {
     const seeds = this.roundSeeds;
     const myBet = this.snapshot.myBet;
 
-    // Gleichstand: Auto-Cashout genau am Crash-Punkt zählt als Gewinn
+    // Tie: an auto cashout exactly at the crash point counts as a win
     if (myBet?.status === "active" && myBet.autoCashout !== null && myBet.autoCashout <= crashPoint) {
       this.cashOutMine(myBet.autoCashout);
     } else if (myBet?.status === "active") {
@@ -343,7 +343,7 @@ export class CrashEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Abrechnung
+  // Settlement
   // ---------------------------------------------------------------------------
 
   private cashOutMine(multiplier: number): void {
@@ -398,7 +398,7 @@ export class CrashEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Hilfen
+  // Helpers
   // ---------------------------------------------------------------------------
 
   private publicSeeds(seeds: PublicSeeds): PublicSeeds {
@@ -418,7 +418,7 @@ export class CrashEngine {
   }
 
   private createMyPlayer(amount: number, target: number | null): CrashPlayer {
-    const me = this.deps.me() ?? { name: "Du", color: "#39ff14", level: 1 };
+    const me = this.deps.me() ?? { name: "You", color: "#39ff14", level: 1 };
     return { id: "you", user: { ...me, isYou: true }, amount, target, cashedOutAt: null, isYou: true };
   }
 
@@ -434,7 +434,7 @@ export class CrashEngine {
     };
   }
 
-  /** Events (für Sounds) nur, solange die Engine läuft, nicht beim Verlassen der Seite. */
+  /** Events (for sounds) only while the engine runs, not when leaving the page. */
   private emit(event: CrashEvent): void {
     if (this.started) this.deps.onEvent?.(event);
   }

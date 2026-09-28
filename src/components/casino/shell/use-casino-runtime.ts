@@ -7,9 +7,9 @@ import { useSettingsStore } from "@/lib/stores/settings-store";
 import { useLiveConnection } from "./use-live-connection";
 
 /**
- * Startet alles, was das Casino im Browser braucht:
- * gespeicherte Daten laden, Tabs synchronisieren, Audio freischalten, Live-Verbindung.
- * Gibt true zurück, sobald die Daten geladen sind und die Spiele rendern dürfen.
+ * Starts everything the casino needs in the browser:
+ * load saved data, sync tabs, unlock audio, live connection.
+ * Returns true once the data is loaded and the games may render.
  */
 export function useCasinoRuntime(userId: string, name: string): boolean {
   const [ready, setReady] = useState(false);
@@ -26,7 +26,7 @@ export function useCasinoRuntime(userId: string, name: string): boolean {
     };
   }, [userId]);
 
-  // Audio erst nach der ersten Interaktion starten (Autoplay-Regeln der Browser)
+  // Start audio only after the first interaction (browser autoplay rules)
   useEffect(() => {
     const unlock = () => audio.unlock();
     window.addEventListener("pointerdown", unlock, { once: true });

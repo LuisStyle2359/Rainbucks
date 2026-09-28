@@ -4,9 +4,9 @@ import { motion } from "motion/react";
 import type { ReactNode } from "react";
 
 /**
- * Weicher Seitenwechsel zwischen Lobby und Spielen.
- * Bewusst nur Opacity: Ein transform würde für die Dauer der Animation den
- * Bezugsrahmen der fixierten Handy-Wettleiste ändern und sie springen lassen.
+ * Soft page transition between the lobby and the games.
+ * Opacity only on purpose: a transform would change the containing block of
+ * the fixed mobile bet bar for the duration of the animation and make it jump.
  */
 export default function CasinoTemplate({ children }: { children: ReactNode }) {
   return (

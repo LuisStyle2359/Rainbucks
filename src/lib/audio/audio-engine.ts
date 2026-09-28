@@ -1,13 +1,13 @@
 /**
- * Sound-Engine auf Basis der Web Audio API.
+ * Sound engine built on the Web Audio API.
  *
- * Alle Sounds werden in Echtzeit synthetisiert (Oszillatoren, Rauschen, Filter).
- * Es gibt keine Audiodateien: nichts zu laden, keine Latenz, winzige Bundle-Größe.
+ * Every sound is synthesized in real time (oscillators, noise, filters).
+ * No audio files: nothing to download, no latency, a tiny bundle.
  *
- * Signalweg:  Sound → Master-Gain (Lautstärke/Mute) → Kompressor → Lautsprecher
+ * Signal path:  voice → master gain (volume/mute) → compressor → speakers
  *
- * Browser erlauben Audio erst nach einer Nutzerinteraktion. Deshalb wird der
- * AudioContext beim ersten Klick/Tastendruck erzeugt (unlock()).
+ * Browsers only allow audio after a user gesture, so the AudioContext is
+ * created on the first click or key press (unlock()).
  */
 
 export type SoundId =
@@ -17,29 +17,36 @@ export type SoundId =
   | "cashout"
   | "win"
   | "bigWin"
+  | "jackpot"
+  | "levelUp"
+  | "milestone"
+  | "coin"
   | "lose"
   | "gem"
   | "mine"
   | "explosion"
   | "tick"
+  | "wheelTick"
   | "peg"
   | "land"
   | "countdown";
 
 export interface PlayOptions {
-  /** Tonhöhen-Faktor, 1 = normal */
+  /** Pitch factor, 1 = normal */
   pitch?: number;
-  /** Lautstärke-Faktor, 1 = normal */
+  /** Volume factor, 1 = normal */
   volume?: number;
 }
 
-/** Mindestabstand zwischen zwei gleichen Sounds (ms), verhindert Klang-Matsch. */
+/** Minimum gap between two identical sounds (ms), keeps rapid events clean. */
 const THROTTLE_MS: Partial<Record<SoundId, number>> = {
   hover: 45,
   tick: 22,
+  wheelTick: 18,
   peg: 18,
   land: 40,
   click: 30,
+  coin: 28,
 };
 
 type Voice = (ctx: AudioContext, out: AudioNode, t: number, o: Required<PlayOptions>) => void;
@@ -74,10 +81,10 @@ export class AudioEngine {
   private readonly lastPlayed = new Map<SoundId, number>();
 
   // ---------------------------------------------------------------------------
-  // Öffentliche API
+  // Public API
   // ---------------------------------------------------------------------------
 
-  /** Beim ersten Nutzer-Klick aufrufen (Autoplay-Richtlinie der Browser). */
+  /** Call on the first user gesture (browser autoplay policy). */
   unlock(): void {
     this.ensureContext();
   }
@@ -107,7 +114,7 @@ export class AudioEngine {
     });
   }
 
-  /** Anhaltender Spannungs-Sound für Crash. Wird mit dem Multiplikator höher. */
+  /** Sustained tension drone for Crash. Rises with the multiplier. */
   startTension(): TensionVoice | null {
     if (this.muted) return null;
     const ctx = this.ensureContext();
@@ -116,7 +123,7 @@ export class AudioEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Bausteine für die Klang-Synthese
+  // Synthesis building blocks
   // ---------------------------------------------------------------------------
 
   tone(ctx: AudioContext, out: AudioNode, spec: ToneSpec): void {
@@ -166,7 +173,7 @@ export class AudioEngine {
   }
 
   // ---------------------------------------------------------------------------
-  // Intern
+  // Internals
   // ---------------------------------------------------------------------------
 
   private ensureContext(): AudioContext | null {
@@ -214,7 +221,7 @@ export class AudioEngine {
   }
 }
 
-/** Crash-Spannung: Sägezahn durch resonanten Tiefpass, Tremolo wird schneller. */
+/** Crash tension: a sawtooth through a resonant low-pass, tremolo speeds up. */
 export class TensionVoice {
   private readonly osc: OscillatorNode;
   private readonly sub: OscillatorNode;
@@ -283,12 +290,19 @@ export class TensionVoice {
   }
 }
 
-type VoiceWithEngine = (
-  engine: AudioEngine,
-  ...args: Parameters<Voice>
-) => ReturnType<Voice>;
+type VoiceWithEngine = (engine: AudioEngine, ...args: Parameters<Voice>) => ReturnType<Voice>;
 
-const NOTE = { C6: 1046.5, E6: 1318.51, G6: 1567.98, A6: 1760, C7: 2093, E7: 2637.02 };
+const NOTE = {
+  C5: 523.25,
+  G5: 783.99,
+  C6: 1046.5,
+  E6: 1318.51,
+  G6: 1567.98,
+  A6: 1760,
+  C7: 2093,
+  E7: 2637.02,
+  G7: 3135.96,
+};
 
 const VOICES: Record<SoundId, VoiceWithEngine> = {
   click: (e, ctx, out, t, o) => {
@@ -321,6 +335,35 @@ const VOICES: Record<SoundId, VoiceWithEngine> = {
     e.tone(ctx, out, { type: "sine", freq: 110, freqEnd: 55, start: t, duration: 0.6, gain: 0.2 * o.volume });
     e.noise(ctx, out, { start: t + 0.1, duration: 0.8, gain: 0.04 * o.volume, filter: "highpass", freq: 6500 });
   },
+  jackpot: (e, ctx, out, t, o) => {
+    // Rising fanfare, a sustained major chord and a long sparkle tail
+    const run = [NOTE.C5, NOTE.G5, NOTE.C6, NOTE.E6, NOTE.G6, NOTE.C7, NOTE.E7, NOTE.G7];
+    run.forEach((freq, i) => {
+      e.tone(ctx, out, { type: "triangle", freq: freq * o.pitch, start: t + i * 0.055, duration: 0.3, gain: 0.09 * o.volume });
+    });
+    const chordStart = t + run.length * 0.055;
+    for (const freq of [NOTE.C6, NOTE.E6, NOTE.G6, NOTE.C7]) {
+      e.tone(ctx, out, { type: "sawtooth", freq: freq * o.pitch, start: chordStart, duration: 1.4, gain: 0.025 * o.volume, attack: 0.05, detune: 7 });
+      e.tone(ctx, out, { type: "sine", freq: freq * o.pitch, start: chordStart, duration: 1.6, gain: 0.07 * o.volume, attack: 0.03 });
+    }
+    e.tone(ctx, out, { type: "sine", freq: 130, freqEnd: 45, start: chordStart, duration: 0.9, gain: 0.28 * o.volume });
+    e.noise(ctx, out, { start: chordStart, duration: 1.6, gain: 0.05 * o.volume, filter: "highpass", freq: 7500 });
+  },
+  levelUp: (e, ctx, out, t, o) => {
+    e.tone(ctx, out, { type: "sawtooth", freq: 220 * o.pitch, freqEnd: 1760 * o.pitch, start: t, duration: 0.45, gain: 0.035 * o.volume });
+    [NOTE.G5, NOTE.C6, NOTE.E6, NOTE.G6].forEach((freq, i) => {
+      e.tone(ctx, out, { type: "sine", freq: freq * o.pitch, start: t + 0.3 + i * 0.08, duration: 0.55, gain: 0.09 * o.volume });
+    });
+    e.noise(ctx, out, { start: t + 0.3, duration: 0.7, gain: 0.04 * o.volume, filter: "bandpass", freq: 8000, q: 1.5 });
+  },
+  milestone: (e, ctx, out, t, o) => {
+    e.tone(ctx, out, { type: "sine", freq: NOTE.G6 * o.pitch, start: t, duration: 0.18, gain: 0.07 * o.volume });
+    e.tone(ctx, out, { type: "sine", freq: NOTE.C7 * o.pitch, start: t + 0.06, duration: 0.25, gain: 0.07 * o.volume });
+  },
+  coin: (e, ctx, out, t, o) => {
+    e.tone(ctx, out, { type: "sine", freq: 1975 * o.pitch, start: t, duration: 0.07, gain: 0.05 * o.volume });
+    e.tone(ctx, out, { type: "sine", freq: 2637 * o.pitch, start: t + 0.035, duration: 0.12, gain: 0.045 * o.volume });
+  },
   lose: (e, ctx, out, t, o) => {
     e.tone(ctx, out, { type: "sawtooth", freq: 220 * o.pitch, freqEnd: 90, start: t, duration: 0.28, gain: 0.05 * o.volume });
     e.tone(ctx, out, { type: "sine", freq: 110 * o.pitch, freqEnd: 55, start: t, duration: 0.3, gain: 0.12 * o.volume });
@@ -343,6 +386,9 @@ const VOICES: Record<SoundId, VoiceWithEngine> = {
   tick: (e, ctx, out, t, o) => {
     e.tone(ctx, out, { type: "square", freq: 1100 * o.pitch, start: t, duration: 0.014, gain: 0.03 * o.volume });
   },
+  wheelTick: (e, ctx, out, t, o) => {
+    e.tone(ctx, out, { type: "triangle", freq: 1600 * o.pitch, freqEnd: 900 * o.pitch, start: t, duration: 0.03, gain: 0.06 * o.volume });
+  },
   peg: (e, ctx, out, t, o) => {
     e.tone(ctx, out, { type: "sine", freq: 1400 * o.pitch, start: t, duration: 0.05, gain: 0.03 * o.volume });
   },
@@ -354,5 +400,14 @@ const VOICES: Record<SoundId, VoiceWithEngine> = {
   },
 };
 
-/** App-weite Instanz (lazy: erzeugt den AudioContext erst bei Bedarf). */
+/** App-wide instance (lazy: the AudioContext is created on first use). */
 export const audio = new AudioEngine();
+
+/** Short vibration on phones that support it (ignored everywhere else). */
+export function vibrate(pattern: number | number[]): void {
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    // not available (desktop, embedded frames)
+  }
+}

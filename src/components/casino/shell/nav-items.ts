@@ -23,7 +23,7 @@ export const ACCOUNT_ITEMS: NavItem[] = [
 
 export const ALL_ITEMS = [LOBBY_ITEM, ...GAME_ITEMS, ...ACCOUNT_ITEMS];
 
-/** Exakter Treffer für die Lobby, Präfix für alles andere. */
+/** Exact match for the lobby, prefix match for everything else. */
 export function isActive(pathname: string, href: string): boolean {
   return href === "/casino" ? pathname === "/casino" : pathname === href || pathname.startsWith(`${href}/`);
 }

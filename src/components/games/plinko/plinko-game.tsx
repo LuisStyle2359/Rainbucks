@@ -8,6 +8,7 @@ import { Segmented } from "@/components/casino/ui/segmented";
 import { audio } from "@/lib/audio/audio-engine";
 import { placeBet, settleBet } from "@/lib/casino/bets";
 import type { PlinkoRisk } from "@/lib/casino/games";
+import type { ScreenPoint } from "@/lib/casino/celebrations";
 import { calculatePayout, formatMultiplier, formatPercent } from "@/lib/casino/money";
 import { ProvablyFair } from "@/lib/fairness/provably-fair";
 import {
@@ -36,10 +37,10 @@ interface BallPayload {
 const INITIAL_ROWS: PlinkoRows = 12;
 const INITIAL_RISK: PlinkoRisk = "medium";
 
-/** Wette einer gelandeten Kugel abrechnen. */
-function settleBall(ball: PlinkoBall<BallPayload>): number {
+/** Settle the bet of a landed ball. `origin` = where the win coins start. */
+function settleBall(ball: PlinkoBall<BallPayload>, origin?: ScreenPoint): number {
   const { amount, seeds, rows, risk, multiplier, resolve } = ball.payload;
-  settleBet({ game: "plinko", amount, multiplier, seeds: toPublicSeeds(seeds), rows, risk, bin: ball.bin });
+  settleBet({ game: "plinko", amount, multiplier, seeds: toPublicSeeds(seeds), rows, risk, bin: ball.bin }, { origin });
   const profit = calculatePayout(amount, multiplier) - amount;
   resolve?.(profit);
   return profit;
@@ -62,20 +63,21 @@ export function PlinkoGame() {
   const geometry = useMemo(() => createGeometry(rows), [rows]);
   const multipliers = plinkoMultipliers(rows, risk);
 
-  // Physik-Welt und Renderer leben so lange wie die Komponente.
+  // Physics world and renderer live as long as the component.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const world: PlinkoWorld<BallPayload> = new PlinkoWorld<BallPayload>(INITIAL_ROWS, {
       onLand: (ball) => {
-        renderer.landed(ball.bin, ball.body.position.x, ball.body.position.y);
-        settleBall(ball);
+        const { x, y } = ball.body.position;
+        renderer.landed(ball.bin, x, y);
+        settleBall(ball, renderer.toClient(x, y));
         const { multiplier, rows: ballRows, risk: ballRisk } = ball.payload;
         const table = plinkoMultipliers(ballRows, ballRisk);
         audio.play("land", { pitch: 0.75 + Math.min(multiplier, 12) * 0.07 });
-        if (multiplier >= 10) audio.play("bigWin");
-        else if (multiplier >= 2) audio.play("win", { volume: 0.55 });
+        // Big-win fanfares come from the celebration layer
+        if (multiplier >= 2 && multiplier < 5) audio.play("win", { volume: 0.55 });
         setInFlight((count) => Math.max(0, count - 1));
         setRecent((items) =>
           [
@@ -100,7 +102,7 @@ export function PlinkoGame() {
     rendererRef.current = renderer;
 
     return () => {
-      // Kugeln im Flug haben ein festes Ergebnis → beim Verlassen sofort abrechnen
+      // Balls in flight have a fixed result → settle them right away when leaving
       for (const ball of world.balls) settleBall(ball);
       renderer.destroy();
       world.destroy();
@@ -150,12 +152,12 @@ export function PlinkoGame() {
         game="plinko"
         mode={mode}
         onModeChange={setMode}
-        action={{ label: "Kugel fallen lassen", variant: "bet", onClick: () => void drop() }}
+        action={{ label: "Drop ball", variant: "bet", onClick: () => void drop() }}
         auto={auto}
-        summary={`${rows} Reihen · Risiko ${PLINKO_RISKS.find((r) => r.id === risk)?.label}`}
+        summary={`${rows} rows · ${PLINKO_RISKS.find((r) => r.id === risk)?.label} risk`}
       >
         <div>
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-widest text-zinc-500">Risiko</p>
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-widest text-zinc-500">Risk</p>
           <Segmented
             options={PLINKO_RISKS.map((r) => ({ value: r.id, label: r.label }))}
             value={risk}
@@ -167,7 +169,7 @@ export function PlinkoGame() {
         <div>
           <div className="mb-1.5 flex items-baseline justify-between text-xs text-zinc-500">
             <label htmlFor="plinko-rows" className="font-medium uppercase tracking-widest">
-              Reihen
+              Rows
             </label>
             <span className="font-mono text-zinc-200">{rows}</span>
           </div>
@@ -183,27 +185,27 @@ export function PlinkoGame() {
             className="w-full disabled:opacity-50"
           />
           {locked && inFlight > 0 && (
-            <p className="mt-1 text-[11px] text-zinc-500">Einstellungen sind gesperrt, solange Kugeln fallen.</p>
+            <p className="mt-1 text-[11px] text-zinc-500">Settings are locked while balls are falling.</p>
           )}
         </div>
         <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2.5 text-sm">
-          <span className="text-zinc-400">RTP dieser Tabelle</span>
+          <span className="text-zinc-400">RTP of this table</span>
           <span className="font-mono text-zinc-200">{formatPercent(plinkoRtp(rows, risk) * 100)}</span>
         </div>
       </BetPanel>
 
       <section className="relative flex min-w-0 flex-col gap-4">
-        <div className="glass glass-edge relative overflow-hidden rounded-3xl p-2 sm:p-4">
+        <div data-game-stage className="glass glass-edge relative overflow-hidden rounded-3xl p-2 sm:p-4">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,rgb(57_255_20/0.12),transparent_70%)]" />
           <canvas
             ref={canvasRef}
             role="img"
-            aria-label={`Plinko-Brett mit ${rows} Reihen`}
+            aria-label={`Plinko board with ${rows} rows`}
             className="relative block w-full"
             style={{ aspectRatio: `${geometry.width} / ${geometry.height}` }}
           />
 
-          {/* Letzte Ergebnisse */}
+          {/* Recent results */}
           <div className="absolute right-3 top-3 flex flex-col gap-1.5 sm:right-5 sm:top-5">
             <AnimatePresence initial={false} mode="popLayout">
               {recent.map((item) => (
@@ -226,10 +228,10 @@ export function PlinkoGame() {
 
         <div className="glass flex flex-wrap items-center justify-between gap-2 rounded-2xl px-4 py-3 text-xs text-zinc-400">
           <span>
-            Kugeln im Flug: <span className="font-mono text-zinc-100">{inFlight}</span>
+            Balls in play: <span className="font-mono text-zinc-100">{inFlight}</span>
           </span>
           <span>
-            Max. Gewinn:{" "}
+            Max win:{" "}
             <span className="font-mono text-toxic">{formatMultiplier(Math.max(...multipliers))}</span>
           </span>
         </div>

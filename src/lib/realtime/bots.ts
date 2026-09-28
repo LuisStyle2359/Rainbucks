@@ -5,7 +5,7 @@ import { minesMultiplier, minesWinChance } from "@/lib/games/mines/mines-math";
 import { PLINKO_ROWS, plinkoMultiplier } from "@/lib/games/plinko/payouts";
 import type { ChatMessage, ChatUser, LiveBet } from "./types";
 
-// Fiktive Spieler für die Live-Simulation. Alle Einsätze sind virtuell.
+// Fictional players for the live simulation. All their bets are virtual.
 
 const NAMES = [
   "NeonWhale", "SatoshiGhost", "0xDegen", "LunaLambo", "HodlHelga", "PixelPunk",
@@ -21,40 +21,41 @@ export const AVATAR_COLORS = [
 ];
 
 const CHAT_LINES = [
-  "Wer ist gerade auf Crash? 🚀",
+  "Who's on Crash right now? 🚀",
   "LFG 🚀🚀",
-  "{mult} auf Limbo getroffen, let's go!",
-  "Mines mit {n} Bomben ist mein Ding 💎",
-  "Crash direkt bei 1,00× … klassisch 😭",
+  "just hit {mult} on Limbo, let's go!",
+  "Mines with {n} bombs is my thing 💎",
+  "Crashed at 1.00× again … classic 😭",
   "gg",
   "nice cashout 👏",
-  "Plinko auf hohem Risiko ist komplett wild",
-  "Server-Seed rotiert und nachgerechnet: passt ✅",
-  "Nur Spielgeld hier, einfach entspannt bleiben 😎",
-  "Diamant nach Diamant 💎💎💎",
-  "Wie hoch ging die letzte Crash-Runde?",
-  "Auto-Bet läuft, ich hol mir 'nen Kaffee ☕",
-  "Heute ist Plinko-Tag",
-  "{mult}!!! ich zitter",
-  "Stop-Loss ist für Feiglinge 🙃 (Spaß, nutzt ihn)",
-  "Client-Seed ändern bringt Glück … nicht wirklich 😅",
-  "Limbo auf 2× und chillen",
-  "rip, Bombe beim letzten Feld 💥",
-  "ok, eine Runde noch",
-  "GM Leute ☀️",
-  "Das Grid bei Crash sieht heute extra neon aus",
-  "Wer hat den {mult}-Crash gesehen?? 🤯",
-  "Plinko 16 Reihen, Kugel ganz außen, unfassbar",
+  "Plinko on high risk is absolutely wild",
+  "Rotated my server seed and verified it: all good ✅",
+  "Play money only, stay chill 😎",
+  "gem after gem 💎💎💎",
+  "How high did the last Crash round go?",
+  "Auto bet running, grabbing a coffee ☕",
+  "Today is Plinko day",
+  "{mult}!!! my hands are shaking",
+  "free spin gave me 2,500 🎁",
+  "Changing my client seed brings luck … not really 😅",
+  "Limbo on 2× and chill",
+  "rip, bomb on the last tile 💥",
+  "ok, one more round",
+  "GM everyone ☀️",
+  "The Crash grid looks extra neon today",
+  "Did anyone see the {mult} crash?? 🤯",
+  "16 rows Plinko, ball in the corner slot, unreal",
+  "just ranked up to Gold 🥇",
 ];
 
 const REPLIES: { pattern: RegExp; answers: string[] }[] = [
-  { pattern: /\b(hi|hallo|hey|moin|servus|gm|hello)\b/i, answers: ["Hey {user} 👋", "Moin {user}!", "GM {user} ☀️", "Willkommen, {user}!"] },
+  { pattern: /\b(hi|hello|hey|gm|yo|sup)\b/i, answers: ["Hey {user} 👋", "Yo {user}!", "GM {user} ☀️", "Welcome, {user}!"] },
   { pattern: /\bgg\b/i, answers: ["gg 🔥", "gg wp", "ggs"] },
-  { pattern: /crash/i, answers: ["Crash ist heute spicy 🌶️", "Ich cashe immer bei 2× aus", "Nie gierig werden bei Crash 😅"] },
-  { pattern: /mines|bombe|diamant/i, answers: ["3 Minen ist der Sweet Spot", "Diamanten-Sound ist so gut 💎"] },
-  { pattern: /plinko/i, answers: ["Plinko-Physik ist echt smooth", "Hohes Risiko oder gar nicht"] },
-  { pattern: /limbo/i, answers: ["Limbo 10× ist mein Ritual", "Die Zahlen rollen so schön"] },
-  { pattern: /\?\s*$/, answers: ["gute Frage 🤔", "probier's einfach aus", "würde ich auch gern wissen"] },
+  { pattern: /crash/i, answers: ["Crash is spicy today 🌶️", "I always cash out at 2×", "Never get greedy on Crash 😅"] },
+  { pattern: /mines|bomb|gem/i, answers: ["3 mines is the sweet spot", "that gem sound is so good 💎"] },
+  { pattern: /plinko/i, answers: ["Plinko physics are so smooth", "high risk or nothing"] },
+  { pattern: /limbo/i, answers: ["Limbo 10× is my ritual", "love how the numbers roll"] },
+  { pattern: /\?\s*$/, answers: ["good question 🤔", "just try it", "I'd like to know too"] },
 ];
 
 const REACTIONS = ["😂", "true", "real", "haha", "🔥🔥", "💯", "same"];
@@ -82,14 +83,14 @@ export function colorFor(name: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-/** Zufälliger Bot; Namen aus `exclude` werden nach Möglichkeit vermieden. */
+/** Random bot; names from `exclude` are avoided when possible. */
 export function randomBotUser(exclude?: ReadonlySet<string>): ChatUser {
   let name = pick(NAMES);
   for (let attempt = 0; exclude?.has(name) && attempt < 20; attempt++) name = pick(NAMES);
   return { name, color: colorFor(name), level: randomInt(3, 99) };
 }
 
-/** Log-normal verteilte Einsätze: meist kleine Beträge, selten High Roller. */
+/** Log-normally distributed stakes: mostly small, occasionally high rollers. */
 export function randomBotAmount(): number {
   const cents = Math.exp(Math.log(800) + gaussian() * 1.35);
   return Math.min(250_000_00, Math.max(10, Math.round(cents)));
@@ -100,9 +101,9 @@ export const nextId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-
 
 function fillTemplate(text: string, user?: ChatUser): string {
   return text
-    .replace("{mult}", `${pick([12.4, 25, 57.3, 100, 250, 1337]).toLocaleString("de-DE")}×`)
+    .replace("{mult}", `${pick([12.4, 25, 57.3, 100, 250, 1337]).toLocaleString("en-US")}×`)
     .replace("{n}", String(pick([2, 3, 5, 8, 12, 24])))
-    .replace("{user}", user?.name ?? "du");
+    .replace("{user}", user?.name ?? "you");
 }
 
 export function randomBotMessage(): ChatMessage {
@@ -114,7 +115,7 @@ export function randomBotMessage(): ChatMessage {
   };
 }
 
-/** Antwort eines Bots auf eine Nachricht des Spielers (oder null). */
+/** A bot's answer to the player's message (or null). */
 export function botReplyTo(text: string, author: ChatUser): ChatMessage | null {
   const match = REPLIES.find((reply) => reply.pattern.test(text));
   const answer = match ? pick(match.answers) : Math.random() < 0.25 ? pick(REACTIONS) : null;
@@ -128,7 +129,7 @@ export function botReplyTo(text: string, author: ChatUser): ChatMessage | null {
 }
 
 // ---------------------------------------------------------------------------
-// Simulierte Wetten anderer Spieler
+// Simulated bets of other players
 // ---------------------------------------------------------------------------
 
 const GAME_WEIGHTS: Record<GameId, number> = { crash: 0.3, limbo: 0.25, mines: 0.25, plinko: 0.2 };
@@ -180,7 +181,7 @@ export function randomBotBet(): LiveBet {
   };
 }
 
-/** Ziel-Multiplikator eines Bots in einer Crash-Runde. */
+/** A bot's auto cashout target in a Crash round. */
 export function randomCrashTarget(): number {
   const roll = Math.random();
   if (roll < 0.45) return Math.round((1.1 + Math.random() * 1.4) * 100) / 100;

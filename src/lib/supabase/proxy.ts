@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Seiten, die nur eingeloggte Nutzer sehen dürfen.
+// Pages only signed-in users may see.
 const PROTECTED_ROUTES = ["/dashboard", "/casino"];
-// Seiten, die eingeloggte Nutzer nicht mehr brauchen.
+// Pages signed-in users no longer need.
 const AUTH_ROUTES = ["/login", "/register"];
 
 export async function updateSession(request: NextRequest) {
@@ -33,14 +33,14 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Prüft das Login-Token und erneuert es bei Bedarf.
-  // Wichtig: Zwischen createServerClient und getClaims keinen weiteren Code einfügen.
+  // Checks the login token and refreshes it when needed.
+  // Important: do not add code between createServerClient and getClaims.
   const { data } = await supabase.auth.getClaims();
   const isLoggedIn = Boolean(data?.claims);
 
   const path = request.nextUrl.pathname;
 
-  // Weiterleitung, die erneuerte Session-Cookies mitnimmt.
+  // Redirect that carries the refreshed session cookies along.
   const redirectTo = (pathname: string) => {
     const url = request.nextUrl.clone();
     url.pathname = pathname;

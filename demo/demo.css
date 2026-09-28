@@ -1,6 +1,6 @@
 @import "../src/app/globals.css";
 
-/* Schriften kommen hier von Google Fonts statt von next/font */
+/* Fonts come from Google Fonts here instead of next/font */
 :root {
   --font-geist-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-geist-mono: "Geist Mono", ui-monospace, "SFMono-Regular", monospace;
@@ -8,7 +8,7 @@
   color-scheme: dark;
 }
 
-/* Außerhalb der Tailwind-Layer, damit fremde Basis-Styles der Einbettung nicht gewinnen */
+/* Outside the Tailwind layers, so base styles of an embedding page never win */
 html,
 body {
   background: #000;

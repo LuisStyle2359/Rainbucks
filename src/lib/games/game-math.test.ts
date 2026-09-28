@@ -4,8 +4,8 @@ import { limboTargetForChance, limboWinChance, sliderFromTarget, targetFromSlide
 import { gemCount, minesMultiplier, minesWinChance } from "./mines/mines-math";
 import { PLINKO_PAYOUTS, PLINKO_ROWS, plinkoBinProbabilities, plinkoRtp } from "./plinko/payouts";
 
-describe("Geld", () => {
-  it("rechnet Auszahlungen exakt in Cent", () => {
+describe("Money", () => {
+  it("computes payouts exactly in cents", () => {
     expect(calculatePayout(1000, 2.01)).toBe(2010);
     expect(calculatePayout(1000, 1.03)).toBe(1030);
     expect(calculatePayout(333, 1.5)).toBe(499);
@@ -13,28 +13,31 @@ describe("Geld", () => {
     expect(calculatePayout(1_000_000_000, 1_000_000)).toBe(1_000_000_000_000_000);
   });
 
-  it("schneidet Multiplikatoren ab statt zu runden", () => {
+  it("truncates multipliers instead of rounding", () => {
     expect(floorMultiplier(1.125)).toBe(1.12);
     expect(floorMultiplier(2)).toBe(2);
   });
 
-  it("versteht deutsche und englische Schreibweise", () => {
+  it("understands English and German notation", () => {
     expect(parseDecimalInput("12,5")).toBe(12.5);
     expect(parseDecimalInput("12.5")).toBe(12.5);
+    expect(parseDecimalInput("1,234.56")).toBe(1234.56);
+    expect(parseDecimalInput("1,000")).toBe(1000);
     expect(parseDecimalInput("1.234,56")).toBe(1234.56);
+    expect(parseDecimalInput("2.00×")).toBe(2);
     expect(parseDecimalInput("2,00×")).toBe(2);
     expect(parseDecimalInput("abc")).toBeNull();
     expect(parseDecimalInput("")).toBeNull();
   });
 
-  it("begrenzt Einsätze auf das Guthaben", () => {
+  it("caps bets at the balance", () => {
     expect(clampBet(5000, 1000)).toBe(1000);
     expect(clampBet(0, 1000)).toBe(1);
   });
 });
 
 describe("Mines", () => {
-  it("liefert bekannte Multiplikatoren", () => {
+  it("yields known multipliers", () => {
     expect(minesMultiplier(1, 1)).toBe(1.03);
     expect(minesMultiplier(3, 1)).toBe(1.12);
     expect(minesMultiplier(24, 1)).toBe(24.75);
@@ -42,7 +45,7 @@ describe("Mines", () => {
     expect(minesMultiplier(3, gemCount(3) + 1)).toBe(0);
   });
 
-  it("bleibt bei jedem Zug bei höchstens 99 % RTP", () => {
+  it("stays at no more than 99% RTP on every step", () => {
     for (let mines = 1; mines <= 24; mines++) {
       for (let gems = 1; gems <= gemCount(mines); gems++) {
         const rtp = minesMultiplier(mines, gems) * minesWinChance(mines, gems);
@@ -53,21 +56,21 @@ describe("Mines", () => {
 });
 
 describe("Limbo", () => {
-  it("rechnet Gewinnchance und Ziel ineinander um", () => {
+  it("converts between win chance and target", () => {
     expect(limboWinChance(2)).toBeCloseTo(49.5);
     expect(limboTargetForChance(49.5)).toBe(2);
     expect(limboTargetForChance(9.9)).toBe(10);
   });
 
-  it("bildet den Slider logarithmisch ab", () => {
+  it("maps the slider logarithmically", () => {
     expect(targetFromSlider(0)).toBe(1.01);
     expect(targetFromSlider(1)).toBe(1000);
     expect(targetFromSlider(sliderFromTarget(10))).toBeCloseTo(10, 1);
   });
 });
 
-describe("Plinko-Tabellen", () => {
-  it("haben für alle 27 Varianten die richtige Länge, Symmetrie und RTP", () => {
+describe("Plinko tables", () => {
+  it("have the right length, symmetry and RTP for all 27 variants", () => {
     for (const risk of ["low", "medium", "high"] as const) {
       for (const rows of PLINKO_ROWS) {
         const table = PLINKO_PAYOUTS[risk][rows];
@@ -80,7 +83,7 @@ describe("Plinko-Tabellen", () => {
     }
   });
 
-  it("verwendet echte Binomial-Wahrscheinlichkeiten", () => {
+  it("uses real binomial probabilities", () => {
     const probabilities = plinkoBinProbabilities(16);
     expect(probabilities.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
     expect(probabilities[8]).toBeCloseTo(12870 / 65536, 12);

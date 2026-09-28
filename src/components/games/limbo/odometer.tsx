@@ -4,23 +4,23 @@ import { animate, motion, useMotionValue, useTransform, useVelocity } from "moti
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/cn";
 
-/** Höhe einer Ziffern-Zelle in em. Etwas über 1em, damit nichts abgeschnitten wird. */
+/** Height of a digit cell in em. Slightly above 1em so nothing gets clipped. */
 const CELL = 1.12;
 const STRIP = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0];
 
 interface OdometerProps {
-  /** Fertig formatierter Wert, z. B. "1.234,56" */
+  /** Formatted value, e.g. "1,234.56" */
   text: string;
-  /** Neue ID = neue Rollanimation */
+  /** New id = new roll animation */
   rollId: number;
   durationMs: number;
   className?: string;
 }
 
 /**
- * Zahlen, die wie Walzen einer Slot-Maschine vertikal rollen.
- * Jede Ziffer ist ein Streifen 0–9, verschoben per translateY.
- * Die Walzen stoppen von links nach rechts, rechts drehen sie am meisten.
+ * Numbers that roll vertically like the reels of a slot machine.
+ * Every digit is a 0–9 strip moved via translateY.
+ * The reels stop from left to right; the rightmost spins the most.
  */
 export function Odometer({ text, rollId, durationMs, className }: OdometerProps) {
   const chars = [...text];
@@ -65,10 +65,10 @@ function DigitColumn({
   spins: number;
   durationMs: number;
 }) {
-  // Position in "Ziffern": 0 = "0", 7 = "7", 13 = "3" nach einer vollen Umdrehung
+  // Position in "digits": 0 = "0", 7 = "7", 13 = "3" after one full turn
   const position = useMotionValue(digit);
   const y = useTransform(position, (value) => `${-(((value % 10) + 10) % 10) * CELL}em`);
-  // Bewegungsunschärfe proportional zur Drehgeschwindigkeit
+  // Motion blur proportional to the spin speed
   const velocity = useVelocity(position);
   const filter = useTransform(velocity, (v) => `blur(${Math.min(Math.abs(v) * 0.018, 3.2).toFixed(2)}px)`);
   const lastRoll = useRef(rollId);

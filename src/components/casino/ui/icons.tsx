@@ -106,6 +106,28 @@ export const LogoutIcon = (props: IconProps) => (
   </svg>
 );
 
+export const GiftIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="8" width="18" height="4" rx="1" />
+    <path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+    <path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5" />
+  </svg>
+);
+
+export const CrownIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="m3 7 4.5 4L12 4l4.5 7L21 7l-2 11H5Z" />
+    <path d="M5 21h14" />
+  </svg>
+);
+
+export const TrophyIcon = (props: IconProps) => (
+  <svg {...base} {...props}>
+    <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z" />
+    <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3" />
+  </svg>
+);
+
 export const GAME_ICONS: Record<GameId, (props: IconProps) => JSX.Element> = {
   crash: RocketIcon,
   mines: GemIconLine,

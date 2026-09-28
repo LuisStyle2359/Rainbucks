@@ -10,10 +10,10 @@ import {
 } from "./crash-engine";
 
 /**
- * Canvas-Renderer für Crash. Läuft komplett außerhalb von React:
- * requestAnimationFrame zeichnet mit der Bildwiederholrate des Displays
- * (60, 120 oder 144 Hz). Alle Bewegungen sind zeitbasiert (dt), daher
- * gleich schnell auf jedem Gerät.
+ * Canvas renderer for Crash. Runs entirely outside of React:
+ * requestAnimationFrame draws at the display's refresh rate (60, 120 or
+ * 144 Hz). Every movement is time based (dt), so it runs at the same speed
+ * on every device.
  */
 
 const TOXIC = "#39ff14";
@@ -22,18 +22,36 @@ const ORANGE = "#ff8a3d";
 const GOLD = "#ffd23f";
 const WHITE = "#ffffff";
 const PINK = "#ff4fd8";
+const CYAN = "#22e4ff";
 
-const PALETTE = [TOXIC, RED, ORANGE, GOLD, WHITE, PINK] as const;
-const C = { toxic: 0, red: 1, orange: 2, gold: 3, white: 4, pink: 5 } as const;
+const PALETTE = [TOXIC, RED, ORANGE, GOLD, WHITE, PINK, CYAN] as const;
+const C = { toxic: 0, red: 1, orange: 2, gold: 3, white: 4, pink: 5, cyan: 6 } as const;
 
 const Y_STEPS = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1e3, 2e3, 2.5e3, 5e3, 1e4, 2e4, 2.5e4, 5e4, 1e5, 2e5, 2.5e5, 5e5];
 const X_STEPS_S = [1, 2, 5, 10, 15, 20, 30, 60, 120, 300, 600, 1200];
+const MILESTONES = [2, 3, 5, 10, 25, 50, 100, 250, 500, 1000, 5000, 10000];
 const STAR_COUNT = 80;
+
+/** Color tier of a multiplier: the higher, the hotter. */
+export function multiplierColor(multiplier: number): string {
+  if (multiplier >= 10) return PINK;
+  if (multiplier >= 5) return GOLD;
+  if (multiplier >= 2) return TOXIC;
+  return WHITE;
+}
+
+function tierParticles(multiplier: number): number[] {
+  if (multiplier >= 10) return [C.pink, C.white, C.gold];
+  if (multiplier >= 5) return [C.gold, C.white, C.orange];
+  return [C.toxic, C.white, C.cyan];
+}
 
 export interface CrashRendererOptions {
   reducedMotion: boolean;
-  /** Wird jeden Frame mit dem aktuellen Multiplikator aufgerufen (z. B. für den Cashout-Button). */
+  /** Called every frame with the current multiplier (e.g. for the cashout button). */
   onFrame?: (multiplier: number, phase: CrashPhase) => void;
+  /** Called when the multiplier passes 2×, 3×, 5×, 10× … */
+  onMilestone?: (milestone: number) => void;
 }
 
 interface Layout {
@@ -46,7 +64,7 @@ interface Layout {
 
 export class CrashRenderer {
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly particles = new ParticleSystem(1_400, PALETTE);
+  private readonly particles = new ParticleSystem(1_600, PALETTE);
   private readonly stars = new Float32Array(STAR_COUNT * 3);
   private readonly points = new Float32Array(2 * 162);
   private readonly resizeObserver: ResizeObserver;
@@ -64,8 +82,12 @@ export class CrashRenderer {
   private shake = 0;
   private flash = 0;
   private exhaustCarry = 0;
-  private shockwave = { at: -Infinity, x: 0, y: 0 };
+  private shockwave = { at: -Infinity, x: 0, y: 0, color: RED, radius: 230 };
   private explodedRound = -1;
+  private cashoutBurstRound = -1;
+  private milestoneRound = -1;
+  private milestoneIndex = 0;
+  private milestonePunch = -Infinity;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -73,7 +95,7 @@ export class CrashRenderer {
     private readonly options: CrashRendererOptions,
   ) {
     const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) throw new Error("Canvas 2D wird nicht unterstützt.");
+    if (!ctx) throw new Error("Canvas 2D is not supported.");
     this.ctx = ctx;
 
     const styles = getComputedStyle(document.documentElement);
@@ -143,7 +165,7 @@ export class CrashRenderer {
       compact,
     };
 
-    // --- Zeitachse und Skalierung --------------------------------------------
+    // --- Time axis and scaling -------------------------------------------------
     let tEnd = 0;
     let mEnd = 1;
     if (snap.phase === "running") {
@@ -153,15 +175,15 @@ export class CrashRenderer {
       mEnd = snap.crashPoint;
       tEnd = timeForMultiplier(mEnd);
     }
-    // Kopf der Kurve bleibt bei ~80 % Breite und ~72 % Höhe, die Achsen skalieren mit.
+    // The head of the curve stays at ~80% width and ~72% height; the axes rescale.
     const tMax = Math.max(10_000, tEnd / 0.8);
     const mMax = Math.max(2, 1 + (mEnd - 1) / 0.72);
     const X = (t: number) => layout.left + (t / tMax) * layout.width;
     const Y = (m: number) => layout.top + layout.height - ((m - 1) / (mMax - 1)) * layout.height;
 
-    // --- Zustand fortschreiben -----------------------------------------------
+    // --- Update state ------------------------------------------------------------
     const targetSpeed =
-      snap.phase === "running" ? 45 + 130 * Math.log(Math.max(1, mEnd)) : snap.phase === "betting" ? 14 : 0;
+      snap.phase === "running" ? 45 + 150 * Math.log(Math.max(1, mEnd)) : snap.phase === "betting" ? 14 : 0;
     const response = snap.phase === "crashed" ? 2.2 : 4;
     this.gridSpeed += (targetSpeed - this.gridSpeed) * (1 - Math.exp(-dt * response));
     this.gridScroll += this.gridSpeed * dt;
@@ -170,11 +192,25 @@ export class CrashRenderer {
       this.explodedRound = snap.roundId;
       this.explode(X(tEnd), Y(mEnd), now);
     }
+
+    const myBet = snap.myBet;
+    if (myBet?.status === "cashed" && myBet.cashedOutAt && this.cashoutBurstRound !== myBet.roundId) {
+      this.cashoutBurstRound = myBet.roundId;
+      const x = X(timeForMultiplier(myBet.cashedOutAt));
+      const y = Y(myBet.cashedOutAt);
+      this.particles.burst(x, y, this.options.reducedMotion ? 30 : 90, 420, [C.gold, C.white, C.toxic]);
+      this.shockwave = { at: now, x, y, color: GOLD, radius: 160 };
+    }
+
+    if (snap.phase === "running") this.checkMilestones(snap.roundId, mEnd, X(tEnd), Y(mEnd), now);
+
     this.shake *= Math.exp(-dt * 7);
     this.flash *= Math.exp(-dt * 5);
 
-    // --- Zeichnen -------------------------------------------------------------
-    const accent = snap.phase === "crashed" ? RED : TOXIC;
+    // --- Draw -------------------------------------------------------------------
+    const crashed = snap.phase === "crashed";
+    const accent = crashed ? RED : snap.phase === "running" ? multiplierColor(mEnd) : TOXIC;
+    const trail = accent === WHITE ? TOXIC : accent;
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W, H);
 
@@ -186,7 +222,7 @@ export class CrashRenderer {
       layout.top + layout.height,
       Math.max(W, H) * 0.95,
     );
-    glow.addColorStop(0, withAlpha(accent, snap.phase === "running" ? 0.13 : 0.07));
+    glow.addColorStop(0, withAlpha(trail, snap.phase === "running" ? 0.16 : 0.07));
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
@@ -207,16 +243,18 @@ export class CrashRenderer {
       this.particles.draw(ctx);
       this.drawBetting(now, snap, layout, X(0), Y(1));
     } else {
-      const head = this.drawCurve(tEnd, X, Y, accent, layout);
+      const head = this.drawCurve(tEnd, X, Y, crashed ? RED : trail, layout);
       this.drawCashoutMarkers(snap, X, Y);
-      const scale = compact ? 0.82 : 1;
+      const scale = compact ? 0.95 : 1.2;
       if (running) this.emitExhaust(head.x, head.y, head.angle, multiplier, dt, scale);
       this.particles.draw(ctx);
-      if (running) this.drawRocket(head.x, head.y, head.angle, now, scale, 1);
+      if (running) this.drawRocket(head.x, head.y, head.angle, now, scale, 1, trail);
       this.drawShockwave(now);
-      this.drawMultiplier(snap, multiplier, layout);
+      this.drawMultiplier(snap, multiplier, layout, now);
     }
     ctx.restore();
+
+    if (running) this.drawVignette(mEnd, now, trail);
 
     if (this.flash > 0.01) {
       ctx.fillStyle = withAlpha(RED, this.flash * 0.3);
@@ -225,10 +263,43 @@ export class CrashRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // Hintergrund
+  // Milestones
   // ---------------------------------------------------------------------------
 
-  /** Sterne mit Tiefe: nahe Sterne sind heller, schneller und ziehen Streifen. */
+  private checkMilestones(roundId: number, multiplier: number, x: number, y: number, now: number): void {
+    if (this.milestoneRound !== roundId) {
+      this.milestoneRound = roundId;
+      this.milestoneIndex = 0;
+    }
+    while (this.milestoneIndex < MILESTONES.length && multiplier >= MILESTONES[this.milestoneIndex]) {
+      const value = MILESTONES[this.milestoneIndex++];
+      this.milestonePunch = now;
+      this.shockwave = { at: now, x, y, color: multiplierColor(value), radius: 150 };
+      if (!this.options.reducedMotion) this.particles.burst(x, y, 40, 320, tierParticles(value));
+      this.options.onMilestone?.(value);
+    }
+  }
+
+  /** Screen edges glow harder the higher the multiplier climbs. */
+  private drawVignette(multiplier: number, now: number, color: string): void {
+    const { ctx, width: W, height: H } = this;
+    const heat = Math.min(0.55, 0.06 + Math.log(multiplier) * 0.13);
+    const pulse = multiplier >= 5 && !this.options.reducedMotion ? 0.75 + 0.25 * Math.sin(now / 110) : 1;
+    const vignette = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.32, W / 2, H / 2, Math.hypot(W, H) * 0.6);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, withAlpha(color, heat * pulse));
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Background
+  // ---------------------------------------------------------------------------
+
+  /** Stars with depth: close stars are brighter, faster and leave streaks. */
   private drawStars(dt: number): void {
     const { ctx, width: W, height: H, stars } = this;
     const speed = this.gridSpeed;
@@ -236,8 +307,8 @@ export class CrashRenderer {
     ctx.lineCap = "round";
     for (let i = 0; i < STAR_COUNT; i++) {
       const depth = stars[i * 3 + 2];
-      let x = stars[i * 3] - ((speed * depth * 0.9 * dt) / W);
-      let y = stars[i * 3 + 1] + ((speed * depth * 0.45 * dt) / H);
+      let x = stars[i * 3] - (speed * depth * 0.9 * dt) / W;
+      let y = stars[i * 3 + 1] + (speed * depth * 0.45 * dt) / H;
       if (x < 0) x += 1;
       if (y > 1) y -= 1;
       stars[i * 3] = x;
@@ -245,7 +316,7 @@ export class CrashRenderer {
 
       const px = x * W;
       const py = y * H;
-      const streak = Math.min(46, speed * depth * 0.09);
+      const streak = Math.min(52, speed * depth * 0.09);
       ctx.strokeStyle = `rgba(210,255,220,${0.15 + depth * 0.5})`;
       ctx.lineWidth = depth * 1.6;
       ctx.beginPath();
@@ -256,7 +327,7 @@ export class CrashRenderer {
     ctx.restore();
   }
 
-  /** Raster, das mit der Fluggeschwindigkeit nach links unten wandert. */
+  /** Grid that scrolls towards the bottom left with the flight speed. */
   private drawGrid({ left, top, width, height, compact }: Layout): void {
     const { ctx } = this;
     const spacing = compact ? 40 : 52;
@@ -281,7 +352,7 @@ export class CrashRenderer {
     }
     ctx.stroke();
 
-    // Vignette oben, damit das Raster in die Tiefe verläuft
+    // Fade towards the top so the grid recedes into depth
     const fade = ctx.createLinearGradient(0, top, 0, top + height);
     fade.addColorStop(0, "rgba(0,0,0,0.75)");
     fade.addColorStop(0.5, "rgba(0,0,0,0)");
@@ -302,7 +373,7 @@ export class CrashRenderer {
     ctx.font = `500 ${compact ? 10 : 11}px ${this.fonts.mono}`;
     ctx.fillStyle = "rgba(255,255,255,0.38)";
 
-    // Y-Achse: Multiplikator
+    // Y axis: multiplier
     const yStep = niceStep(mMax - 1, compact ? 4 : 5, Y_STEPS);
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
@@ -310,11 +381,11 @@ export class CrashRenderer {
       const value = 1 + i * yStep;
       if (value > mMax + 1e-9) break;
       const decimals = yStep < 1 ? 1 : 0;
-      const label = `${value.toLocaleString("de-DE", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}×`;
+      const label = `${value.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}×`;
       ctx.fillText(label, left - 8, Y(value));
     }
 
-    // X-Achse: Sekunden
+    // X axis: seconds
     const xStep = niceStep(tMax / 1000, compact ? 4 : 6, X_STEPS_S);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
@@ -322,7 +393,7 @@ export class CrashRenderer {
       ctx.fillText(`${s}s`, X(s * 1000), top + height + 10);
     }
 
-    // Grundlinie 1,00×
+    // Baseline 1.00×
     ctx.strokeStyle = "rgba(57,255,20,0.22)";
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -333,10 +404,10 @@ export class CrashRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // Kurve und Rakete
+  // Curve and rocket
   // ---------------------------------------------------------------------------
 
-  /** Exponentialkurve, geglättet mit quadratischen Bezier-Segmenten. */
+  /** Exponential curve, smoothed with quadratic Bezier segments. */
   private drawCurve(
     tEnd: number,
     X: (t: number) => number,
@@ -363,34 +434,34 @@ export class CrashRenderer {
     const endY = points[n * 2 + 1];
     curve.lineTo(endX, endY);
 
-    // Fläche unter der Kurve
+    // Area below the curve
     const baseY = Y(1);
     const area = new Path2D(curve);
     area.lineTo(endX, baseY);
     area.lineTo(points[0], baseY);
     area.closePath();
     const fill = ctx.createLinearGradient(0, endY, 0, baseY);
-    fill.addColorStop(0, withAlpha(color, 0.32));
+    fill.addColorStop(0, withAlpha(color, 0.34));
     fill.addColorStop(1, withAlpha(color, 0));
     ctx.fillStyle = fill;
     ctx.fill(area);
 
-    // Leuchtende Spur: mehrere Striche übereinander, additiv gemischt
+    // Glowing trail: several strokes on top of each other, mixed additively
     ctx.save();
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     ctx.globalCompositeOperation = "lighter";
     for (const [lineWidth, alpha] of [
-      [20, 0.05],
-      [11, 0.11],
-      [6, 0.28],
+      [22, 0.05],
+      [12, 0.12],
+      [6, 0.3],
     ] as const) {
       ctx.lineWidth = lineWidth;
       ctx.strokeStyle = withAlpha(color, alpha);
       ctx.stroke(curve);
     }
     ctx.globalCompositeOperation = "source-over";
-    ctx.lineWidth = 3.2;
+    ctx.lineWidth = 3.4;
     ctx.strokeStyle = color;
     ctx.stroke(curve);
     ctx.lineWidth = 1.1;
@@ -404,7 +475,7 @@ export class CrashRenderer {
     return { x: endX, y: endY, angle };
   }
 
-  /** Punkte auf der Kurve, an denen Spieler ausgestiegen sind. */
+  /** Points on the curve where players cashed out. */
   private drawCashoutMarkers(snap: CrashSnapshot, X: (t: number) => number, Y: (m: number) => number): void {
     const { ctx } = this;
     ctx.save();
@@ -414,11 +485,11 @@ export class CrashRenderer {
       const y = Y(player.cashedOutAt);
       ctx.fillStyle = player.isYou ? GOLD : withAlpha(player.user.color, 0.9);
       ctx.beginPath();
-      ctx.arc(x, y, player.isYou ? 5 : 2.6, 0, Math.PI * 2);
+      ctx.arc(x, y, player.isYou ? 5.5 : 2.6, 0, Math.PI * 2);
       ctx.fill();
       if (player.isYou) {
         ctx.strokeStyle = withAlpha(GOLD, 0.5);
-        ctx.lineWidth = 6;
+        ctx.lineWidth = 7;
         ctx.stroke();
       }
     }
@@ -426,45 +497,53 @@ export class CrashRenderer {
   }
 
   private emitExhaust(x: number, y: number, angle: number, multiplier: number, dt: number, scale: number): void {
-    const rate = (this.options.reducedMotion ? 25 : 80) + 40 * Math.log(Math.max(1, multiplier));
+    const rate = (this.options.reducedMotion ? 25 : 90) + 55 * Math.log(Math.max(1, multiplier));
     this.exhaustCarry += rate * dt;
     const tailX = x - Math.cos(angle) * 15 * scale;
     const tailY = y - Math.sin(angle) * 15 * scale;
     while (this.exhaustCarry >= 1) {
       this.exhaustCarry -= 1;
       const direction = angle + Math.PI + (Math.random() - 0.5) * 0.7;
-      const speed = 60 + Math.random() * 130;
+      const speed = 60 + Math.random() * 150;
       this.particles.spawn(
         tailX,
         tailY,
         Math.cos(direction) * speed,
         Math.sin(direction) * speed,
-        0.25 + Math.random() * 0.4,
-        1.4 + Math.random() * 2.4,
+        0.25 + Math.random() * 0.45,
+        1.4 + Math.random() * 2.6,
         Math.random() < 0.5 ? C.orange : Math.random() < 0.6 ? C.gold : C.red,
       );
     }
   }
 
-  private drawRocket(x: number, y: number, angle: number, now: number, scale: number, thrust: number): void {
+  private drawRocket(
+    x: number,
+    y: number,
+    angle: number,
+    now: number,
+    scale: number,
+    thrust: number,
+    glowColor: string,
+  ): void {
     const { ctx } = this;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(angle);
     ctx.scale(scale, scale);
 
-    // pulsierender Glow
+    // Pulsing glow
     const pulse = 0.55 + 0.25 * Math.sin(now / 150);
-    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 38);
-    halo.addColorStop(0, withAlpha(TOXIC, 0.5 * pulse));
-    halo.addColorStop(1, withAlpha(TOXIC, 0));
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 42);
+    halo.addColorStop(0, withAlpha(glowColor, 0.55 * pulse));
+    halo.addColorStop(1, withAlpha(glowColor, 0));
     ctx.globalCompositeOperation = "lighter";
     ctx.fillStyle = halo;
-    ctx.fillRect(-38, -38, 76, 76);
+    ctx.fillRect(-42, -42, 84, 84);
     ctx.globalCompositeOperation = "source-over";
 
-    // Flamme
-    const flame = (10 + Math.sin(now / 35) * 3 + Math.random() * 5) * thrust;
+    // Flame
+    const flame = (11 + Math.sin(now / 35) * 3 + Math.random() * 6) * thrust;
     const flameGradient = ctx.createLinearGradient(-12, 0, -14 - flame, 0);
     flameGradient.addColorStop(0, "#fff7c2");
     flameGradient.addColorStop(0.35, ORANGE);
@@ -477,8 +556,8 @@ export class CrashRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Flossen
-    ctx.fillStyle = TOXIC;
+    // Fins
+    ctx.fillStyle = glowColor;
     ctx.beginPath();
     ctx.moveTo(-4, -4.5);
     ctx.lineTo(-14, -10.5);
@@ -490,7 +569,7 @@ export class CrashRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Rumpf
+    // Body
     const body = ctx.createLinearGradient(0, -6, 0, 6);
     body.addColorStop(0, "#ffffff");
     body.addColorStop(1, "#8e98a4");
@@ -502,8 +581,8 @@ export class CrashRenderer {
     ctx.quadraticCurveTo(9, 7, 17, 0);
     ctx.fill();
 
-    // Spitze
-    ctx.fillStyle = TOXIC;
+    // Nose
+    ctx.fillStyle = glowColor;
     ctx.beginPath();
     ctx.moveTo(17, 0);
     ctx.quadraticCurveTo(13, -4.3, 9.5, -5);
@@ -511,9 +590,9 @@ export class CrashRenderer {
     ctx.quadraticCurveTo(13, 4.3, 17, 0);
     ctx.fill();
 
-    // Fenster
+    // Window
     ctx.fillStyle = "#062b00";
-    ctx.strokeStyle = TOXIC;
+    ctx.strokeStyle = glowColor;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.arc(2, 0, 2.6, 0, Math.PI * 2);
@@ -523,49 +602,53 @@ export class CrashRenderer {
   }
 
   // ---------------------------------------------------------------------------
-  // Crash-Effekte
+  // Crash effects
   // ---------------------------------------------------------------------------
 
   private explode(x: number, y: number, now: number): void {
     const full = !this.options.reducedMotion;
-    this.particles.burst(x, y, full ? 170 : 50, full ? 560 : 300, [C.red, C.orange, C.white, C.pink, C.gold]);
-    if (full) this.particles.burst(x, y, 60, 950, [C.white, C.gold]);
-    this.shockwave = { at: now, x, y };
+    this.particles.burst(x, y, full ? 190 : 50, full ? 600 : 300, [C.red, C.orange, C.white, C.pink, C.gold]);
+    if (full) this.particles.burst(x, y, 70, 1000, [C.white, C.gold]);
+    this.shockwave = { at: now, x, y, color: RED, radius: 240 };
     this.flash = 1;
-    this.shake = full ? 16 : 0;
+    this.shake = full ? 18 : 0;
   }
 
   private drawShockwave(now: number): void {
     const t = (now - this.shockwave.at) / 700;
     if (t < 0 || t > 1) return;
     const { ctx } = this;
+    const { x, y, color, radius } = this.shockwave;
     const eased = 1 - (1 - t) ** 3;
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
-    ctx.strokeStyle = withAlpha(RED, 1 - t);
+    ctx.strokeStyle = withAlpha(color, 1 - t);
     ctx.lineWidth = 1 + 5 * (1 - t);
     ctx.beginPath();
-    ctx.arc(this.shockwave.x, this.shockwave.y, eased * 230, 0, Math.PI * 2);
+    ctx.arc(x, y, eased * radius, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = withAlpha(ORANGE, (1 - t) * 0.6);
+    ctx.strokeStyle = withAlpha(color === RED ? ORANGE : WHITE, (1 - t) * 0.6);
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(this.shockwave.x, this.shockwave.y, eased * 140, 0, Math.PI * 2);
+    ctx.arc(x, y, eased * radius * 0.6, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
 
   // ---------------------------------------------------------------------------
-  // Texte
+  // Text
   // ---------------------------------------------------------------------------
 
-  private drawMultiplier(snap: CrashSnapshot, multiplier: number, layout: Layout): void {
+  private drawMultiplier(snap: CrashSnapshot, multiplier: number, layout: Layout, now: number): void {
     const { ctx } = this;
     const crashed = snap.phase === "crashed";
     const cx = layout.left + layout.width / 2;
     const cy = layout.top + layout.height * 0.4;
-    const size = Math.max(42, Math.min(116, layout.width * 0.14));
-    const color = crashed ? RED : TOXIC;
+    const punchAge = (now - this.milestonePunch) / 320;
+    const punch = punchAge >= 0 && punchAge < 1 ? 1 + 0.2 * (1 - punchAge) ** 2 : 1;
+    const growth = crashed ? 1 : 1 + Math.min(0.3, Math.log10(Math.max(1, multiplier)) * 0.15);
+    const size = Math.max(42, Math.min(122, layout.width * 0.14)) * growth * punch;
+    const color = crashed ? RED : multiplierColor(multiplier);
 
     ctx.save();
     ctx.textAlign = "center";
@@ -575,14 +658,14 @@ export class CrashRenderer {
       ctx.font = `700 ${Math.round(size * 0.24)}px ${this.fonts.display}`;
       ctx.fillStyle = RED;
       setLetterSpacing(ctx, "6px");
-      ctx.fillText("CRASH", cx, cy - size * 0.72);
+      ctx.fillText("CRASHED", cx, cy - size * 0.72);
       setLetterSpacing(ctx, "0px");
     }
 
     ctx.font = `700 ${Math.round(size)}px ${this.fonts.mono}`;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 30;
-    ctx.fillStyle = crashed ? RED : "#ffffff";
+    ctx.shadowColor = color === WHITE ? TOXIC : color;
+    ctx.shadowBlur = 30 + (punch - 1) * 120;
+    ctx.fillStyle = color;
     ctx.fillText(formatMultiplier(floorMultiplier(multiplier)), cx, cy);
     ctx.shadowBlur = 0;
 
@@ -590,8 +673,8 @@ export class CrashRenderer {
     if (myBet && myBet.roundId === snap.roundId && (myBet.status === "cashed" || myBet.status === "lost")) {
       const cashed = myBet.status === "cashed";
       const text = cashed
-        ? `Ausgezahlt bei ${formatMultiplier(myBet.cashedOutAt ?? 0)} · Gewinn ${formatSignedAmount(myBet.payout - myBet.amount)} RBX`
-        : `Verloren · −${formatAmount(myBet.amount)} RBX`;
+        ? `Cashed out at ${formatMultiplier(myBet.cashedOutAt ?? 0)} · Profit ${formatSignedAmount(myBet.payout - myBet.amount)} RBX`
+        : `Lost · −${formatAmount(myBet.amount)} RBX`;
       ctx.font = `600 ${layout.compact ? 12 : 14}px ${this.fonts.mono}`;
       const pillWidth = ctx.measureText(text).width + 28;
       const pillHeight = layout.compact ? 28 : 32;
@@ -617,9 +700,9 @@ export class CrashRenderer {
     const cy = layout.top + layout.height * 0.42;
     const size = Math.max(36, Math.min(84, layout.width * 0.1));
 
-    // Rakete wartet auf der Startrampe
+    // The rocket waits on the launch pad
     const bob = Math.sin(now / 320) * 2;
-    this.drawRocket(originX + 18, originY - 16 + bob, -0.35, now, layout.compact ? 0.82 : 1, 0.45);
+    this.drawRocket(originX + 20, originY - 18 + bob, -0.35, now, layout.compact ? 0.95 : 1.2, 0.45, TOXIC);
 
     ctx.save();
     ctx.textAlign = "center";
@@ -627,7 +710,7 @@ export class CrashRenderer {
     ctx.font = `600 ${layout.compact ? 11 : 13}px ${this.fonts.display}`;
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     setLetterSpacing(ctx, "4px");
-    ctx.fillText("NÄCHSTE RUNDE IN", cx, cy - size * 0.85);
+    ctx.fillText("NEXT ROUND IN", cx, cy - size * 0.85);
     setLetterSpacing(ctx, "0px");
 
     ctx.font = `700 ${Math.round(size)}px ${this.fonts.mono}`;
@@ -635,13 +718,13 @@ export class CrashRenderer {
     ctx.shadowBlur = 24;
     ctx.fillStyle = "#ffffff";
     ctx.fillText(
-      `${(remaining / 1000).toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`,
+      `${(remaining / 1000).toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}s`,
       cx,
       cy,
     );
     ctx.shadowBlur = 0;
 
-    // Fortschrittsbalken
+    // Progress bar
     const barWidth = Math.min(320, layout.width * 0.6);
     const barY = cy + size * 0.8;
     ctx.fillStyle = "rgba(255,255,255,0.08)";
@@ -654,6 +737,13 @@ export class CrashRenderer {
     ctx.beginPath();
     ctx.roundRect(cx - barWidth / 2, barY, Math.max(6, barWidth * progress), 6, 3);
     ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = `600 ${layout.compact ? 10 : 12}px ${this.fonts.display}`;
+    ctx.fillStyle = withAlpha(TOXIC, 0.55 + 0.45 * Math.abs(Math.sin(now / 400)));
+    setLetterSpacing(ctx, "3px");
+    ctx.fillText("PLACE YOUR BETS", cx, barY + 28);
+    setLetterSpacing(ctx, "0px");
     ctx.restore();
   }
 }

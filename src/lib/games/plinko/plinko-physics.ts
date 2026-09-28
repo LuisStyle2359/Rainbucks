@@ -2,17 +2,16 @@ import Matter from "matter-js";
 import type { PlinkoStep } from "@/lib/fairness/provably-fair";
 
 /**
- * Plinko-Physik mit matter.js – plus "Lenkung" für Provably Fair.
+ * Plinko physics with matter.js, plus "steering" for provably fair results.
  *
- * Problem: Echte Physik ist chaotisch, das Ergebnis muss aber vorher
- * kryptografisch feststehen (Server-Seed, Client-Seed, Nonce).
+ * Problem: real physics is chaotic, yet the result has to be fixed
+ * cryptographically in advance (server seed, client seed, nonce).
  *
- * Lösung: Der faire Pfad (links/rechts pro Reihe) ist bekannt. Die Kugel fällt
- * mit echter Schwerkraft, prallt echt an Pins ab – bekommt aber vor jeder Reihe
- * einen kleinen horizontalen Impuls in Richtung eines Zielpunkts: den Pin, den
- * sie treffen soll, leicht versetzt zu der Seite, zu der sie abprallen soll.
- * Die Kollision selbst übernimmt dann die Physik. Nach der letzten Reihe wird
- * die Kugel sanft in ihr Fach geführt.
+ * Solution: the fair path (left/right per row) is known. The ball falls with
+ * real gravity and really bounces off pins, but before every row it gets a
+ * small horizontal nudge towards an aim point: the pin it should hit, offset
+ * slightly to the side it should bounce to. The collision itself is left to
+ * the physics engine. After the last row the ball is guided into its slot.
  */
 
 export const PEG_GAP = 60;
@@ -21,11 +20,11 @@ export const PEG_RADIUS = 6.5;
 export const BALL_RADIUS = 12;
 const TOP_PADDING = 84;
 const BIN_HEIGHT = 44;
-/** Feste Schrittweite: 120 Physik-Schritte pro Sekunde, unabhängig von der Bildrate */
+/** Fixed timestep: 120 physics steps per second, independent of the frame rate */
 export const STEP_MS = 1000 / 120;
 const MAX_STEPS_PER_FRAME = 12;
 
-// Lenkung: Zielversatz neben dem Pin (Anteil von PEG_GAP) und Stärke
+// Steering: aim offset next to the pin (share of PEG_GAP) and strength
 const AIM_OFFSET = 0.3 * PEG_GAP;
 const FIELD_GAIN = 0.1;
 const FINAL_GAIN = 0.22;
@@ -43,7 +42,7 @@ export interface BoardGeometry {
   height: number;
   centerX: number;
   firstRowY: number;
-  /** Linie, ab der eine Kugel als gelandet gilt */
+  /** Line below which a ball counts as landed */
   landingY: number;
   binTop: number;
   binHeight: number;
@@ -84,10 +83,10 @@ export interface PlinkoBall<T> {
   body: Matter.Body;
   path: PlinkoStep[];
   bin: number;
-  /** x-Position des Pins, den die Kugel in Reihe r treffen soll */
+  /** x position of the pin the ball should hit in row r */
   pegTargets: number[];
   payload: T;
-  /** Letzte Positionen für die Leuchtspur (x, y, x, y, …) */
+  /** Recent positions for the light trail (x, y, x, y, …) */
   trail: number[];
   bornAt: number;
 }
@@ -103,7 +102,7 @@ export class PlinkoWorld<T> {
   readonly engine: Matter.Engine;
   geometry: BoardGeometry;
   readonly balls: PlinkoBall<T>[] = [];
-  /** Zeitpunkt (ms, Weltzeit) des letzten Treffers pro Pin – für das Aufleuchten */
+  /** Time (ms, world time) of the last hit per pin, for the glow */
   pegHitAt: Float64Array;
   time = 0;
 
@@ -141,7 +140,7 @@ export class PlinkoWorld<T> {
     return this.geometry.rows;
   }
 
-  /** Reihenanzahl ändern (nur ohne fallende Kugeln). */
+  /** Change the row count (only while no balls are falling). */
   setRows(rows: number): boolean {
     if (rows === this.geometry.rows) return true;
     if (this.balls.length > 0) return false;
@@ -153,7 +152,7 @@ export class PlinkoWorld<T> {
 
   drop(path: PlinkoStep[], payload: T): PlinkoBall<T> {
     const { centerX, firstRowY } = this.geometry;
-    // Kleine zufällige Abweichung: jede Kugel fällt ein bisschen anders
+    // Small random offset: every ball falls a little differently
     const x = centerX + (Math.random() - 0.5) * PEG_GAP * 0.16;
     const body = Matter.Bodies.circle(x, firstRowY - ROW_GAP * 1.1, BALL_RADIUS, {
       restitution: 0.3,
@@ -161,7 +160,7 @@ export class PlinkoWorld<T> {
       frictionStatic: 0,
       frictionAir: 0.005,
       density: 0.002,
-      // gleiche negative Gruppe → Kugeln kollidieren nicht miteinander
+      // same negative group → balls never collide with each other
       collisionFilter: { group: -1 },
       label: "ball",
     });
@@ -190,7 +189,7 @@ export class PlinkoWorld<T> {
     return ball;
   }
 
-  /** Simulation um dtMs weiterrechnen (in festen Schritten). */
+  /** Advance the simulation by dtMs (in fixed steps). */
   step(dtMs: number): void {
     this.accumulator = Math.min(this.accumulator + dtMs, STEP_MS * MAX_STEPS_PER_FRAME);
     while (this.accumulator >= STEP_MS) {
@@ -236,14 +235,14 @@ export class PlinkoWorld<T> {
     Matter.Composite.add(this.engine.world, this.pegBodies);
   }
 
-  /** Sanfter horizontaler Impuls Richtung Zielpunkt (siehe Kommentar oben). */
+  /** Gentle horizontal nudge towards the aim point (see comment above). */
   private steer(ball: PlinkoBall<T>): void {
     const { body, path, pegTargets } = ball;
     const { firstRowY, rows, binCenters, landingY } = this.geometry;
     const { x, y } = body.position;
     const velocity = Matter.Body.getVelocity(body);
 
-    // Nächste Reihe, die noch unterhalb der Kugel liegt
+    // Next row that is still below the ball
     const next = y < firstRowY ? 0 : Math.min(rows, Math.floor((y - firstRowY) / ROW_GAP) + 1);
 
     let aimX: number;
@@ -259,7 +258,7 @@ export class PlinkoWorld<T> {
       gain = FINAL_GAIN;
     }
 
-    // Zeit bis zur Zielhöhe schätzen (in Basis-Schritten) und nötige Geschwindigkeit ableiten
+    // Estimate the time to the aim height (in base steps) and derive the needed velocity
     const dy = Math.max(1, aimY - y);
     const steps = Math.max(3, dy / Math.max(velocity.y, 1.2));
     const desired = Math.max(-MAX_VX, Math.min(MAX_VX, (aimX - x) / steps));

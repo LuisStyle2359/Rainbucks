@@ -1,14 +1,14 @@
 import type { NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/proxy";
 
-// Läuft vor jeder Anfrage: erneuert die Session und schützt das Dashboard.
+// Runs before every request: refreshes the session and protects the casino and dashboard.
 export async function proxy(request: NextRequest) {
   return updateSession(request);
 }
 
 export const config = {
   matcher: [
-    // Alle Pfade außer statischen Dateien und Bildern.
+    // All paths except static files and images.
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

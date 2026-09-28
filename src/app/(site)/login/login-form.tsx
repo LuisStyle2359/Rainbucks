@@ -14,7 +14,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     <form action={formAction} className="space-y-4">
       {state.error && <Alert type="error">{state.error}</Alert>}
       <Field
-        label="E-Mail"
+        label="Email"
         name="email"
         type="email"
         autoComplete="email"
@@ -22,13 +22,13 @@ export function LoginForm({ initialError }: { initialError?: string }) {
         defaultValue={state.fields?.email}
       />
       <Field
-        label="Passwort"
+        label="Password"
         name="password"
         type="password"
         autoComplete="current-password"
         required
       />
-      <SubmitButton pending={pending}>Einloggen</SubmitButton>
+      <SubmitButton pending={pending}>Log in</SubmitButton>
     </form>
   );
 }

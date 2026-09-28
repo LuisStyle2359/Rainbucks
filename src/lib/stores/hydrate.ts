@@ -6,8 +6,8 @@ const walletKey = (userId: string) => `rainbucks:${userId}:wallet`;
 const fairnessKey = (userId: string) => `rainbucks:${userId}:fairness`;
 
 /**
- * Lädt Guthaben, Historie und Seeds des eingeloggten Nutzers aus dem localStorage.
- * Jeder Nutzer hat eigene Schlüssel, damit sich Konten im selben Browser nicht mischen.
+ * Loads balance, history and seeds of the current player from localStorage.
+ * Every player gets their own keys, so accounts in one browser never mix.
  */
 export async function hydratePlayerStores(userId: string): Promise<void> {
   useWalletStore.persist.setOptions({ name: walletKey(userId) });
@@ -19,7 +19,7 @@ export async function hydratePlayerStores(userId: string): Promise<void> {
   ]);
 }
 
-/** Übernimmt Änderungen aus anderen Tabs (z. B. Guthaben nach einer Wette). */
+/** Picks up changes from other tabs (e.g. the balance after a bet). */
 export function syncPlayerStoresAcrossTabs(userId: string): () => void {
   const onStorage = (event: StorageEvent) => {
     if (event.key === walletKey(userId)) void useWalletStore.persist.rehydrate();

@@ -9,12 +9,12 @@ export interface MinesSnapshot {
   status: MinesStatus;
   mines: number;
   amount: number;
-  /** Vom Spieler aufgedeckte Felder in Klick-Reihenfolge */
+  /** Tiles revealed by the player, in click order */
   revealed: number[];
-  /** Erst nach Rundenende bekannt */
+  /** Only known after the round ends */
   minePositions: number[] | null;
   bustedTile: number | null;
-  /** Multiplikator für die bisher gefundenen Diamanten */
+  /** Multiplier for the gems found so far */
   multiplier: number;
   payout: number;
 }
@@ -33,7 +33,7 @@ export interface MinesGameDeps {
 
 export type RevealResult = "gem" | "mine" | null;
 
-/** Spiellogik von Mines, unabhängig von React. */
+/** Mines game logic, independent of React. */
 export class MinesGame {
   private snapshot: MinesSnapshot = {
     roundId: 0,
@@ -47,7 +47,7 @@ export class MinesGame {
     payout: 0,
   };
   private readonly listeners = new Set<() => void>();
-  // Geheim, solange die Runde läuft
+  // Secret while the round is running
   private mineSet = new Set<number>();
   private seeds: (SeedPair & PublicSeeds) | null = null;
 
@@ -93,7 +93,7 @@ export class MinesGame {
     const multiplier = minesMultiplier(mines, nextRevealed.length);
     this.commit({ revealed: nextRevealed, multiplier });
 
-    // Alle Diamanten gefunden → automatisch auszahlen
+    // All gems found → cash out automatically
     if (nextRevealed.length === gemCount(mines)) this.cashOut();
     return "gem";
   }
@@ -105,7 +105,7 @@ export class MinesGame {
     return true;
   }
 
-  /** Ein zufälliges, noch verdecktes Feld (für "Zufälliges Feld"). */
+  /** A random tile that is still hidden (for "Random tile"). */
   randomHiddenTile(): number | null {
     const hidden = Array.from({ length: MINES_TILES }, (_, i) => i).filter(
       (tile) => !this.snapshot.revealed.includes(tile),

@@ -2,7 +2,7 @@ import { type EmailOtpType } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Hierhin führt der Link aus der Bestätigungs-E-Mail von Supabase.
+// The link in Supabase's confirmation email leads here.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const tokenHash = searchParams.get("token_hash");
@@ -12,14 +12,14 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
 
   if (tokenHash && type) {
-    // Variante 1: Link mit token_hash (funktioniert in jedem Browser).
+    // Variant 1: link with token_hash (works in any browser).
     const { error } = await supabase.auth.verifyOtp({
       type,
       token_hash: tokenHash,
     });
     if (!error) return NextResponse.redirect(`${origin}/casino`);
   } else if (code) {
-    // Variante 2: Standard-Link von Supabase mit ?code=...
+    // Variant 2: Supabase's default link with ?code=...
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) return NextResponse.redirect(`${origin}/casino`);
   }

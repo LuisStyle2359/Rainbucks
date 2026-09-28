@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import type { GameId } from "@/lib/casino/games";
 import { useUiStore } from "@/lib/stores/settings-store";
 
-/** Merkt sich im globalen Store, welches Spiel gerade offen ist. */
+/** Remembers in the global store which game is currently open. */
 export function useActiveGame(game: GameId): void {
   useEffect(() => {
     useUiStore.getState().setActiveGame(game);

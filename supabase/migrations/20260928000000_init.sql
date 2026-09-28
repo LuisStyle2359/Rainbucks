@@ -1,35 +1,35 @@
 -- ============================================================
--- Rainbucks: Datenbank-Schema
--- Lokal: wird von "npm run db:start" automatisch ausgeführt.
+-- Rainbucks: database schema
+-- Locally this runs automatically with "npm run db:start".
 -- ============================================================
--- Hinweis: E-Mail und Passwort speichert Supabase selbst in der
--- geschützten Tabelle "auth.users". Passwörter liegen dort nur als
--- bcrypt-Hash vor, niemals im Klartext.
+-- Note: Supabase stores email and password itself in the protected
+-- "auth.users" table. Passwords only live there as bcrypt hashes,
+-- never in plain text.
 
--- 1) Tabelle für zusätzliche Profildaten
+-- 1) Table for extra profile data
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   full_name text,
   created_at timestamptz not null default now()
 );
 
--- 2) Row Level Security: Jeder darf nur sein eigenes Profil sehen/ändern
+-- 2) Row Level Security: everyone may only read/update their own profile
 alter table public.profiles enable row level security;
 
-drop policy if exists "Eigenes Profil lesen" on public.profiles;
-create policy "Eigenes Profil lesen"
+drop policy if exists "Read own profile" on public.profiles;
+create policy "Read own profile"
   on public.profiles for select
   to authenticated
   using ((select auth.uid()) = id);
 
-drop policy if exists "Eigenes Profil ändern" on public.profiles;
-create policy "Eigenes Profil ändern"
+drop policy if exists "Update own profile" on public.profiles;
+create policy "Update own profile"
   on public.profiles for update
   to authenticated
   using ((select auth.uid()) = id)
   with check ((select auth.uid()) = id);
 
--- 3) Bei jeder Registrierung automatisch ein Profil anlegen
+-- 3) Create a profile automatically on every sign-up
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql

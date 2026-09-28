@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Dashboard" };
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  // Zweite Sicherheitsprüfung direkt auf der Seite (zusätzlich zu src/proxy.ts).
+  // Second security check right on the page (in addition to src/proxy.ts).
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Profil aus der Datenbank. Dank Row Level Security sieht jeder nur seine eigene Zeile.
+  // Profile from the database. Thanks to Row Level Security everyone only sees their own row.
   const { data: profile } = await supabase
     .from("profiles")
     .select("full_name, created_at")
@@ -27,10 +27,12 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       account={{
-        name: profile?.full_name ?? user.email ?? "Spieler",
+        name: profile?.full_name ?? user.email ?? "Player",
         email: user.email ?? "–",
-        memberSince: new Date(profile?.created_at ?? user.created_at).toLocaleDateString("de-DE"),
-        lastSignIn: user.last_sign_in_at ? new Date(user.last_sign_in_at).toLocaleString("de-DE") : "–",
+        memberSince: new Date(profile?.created_at ?? user.created_at).toLocaleDateString("en-US", { dateStyle: "medium" }),
+        lastSignIn: user.last_sign_in_at
+          ? new Date(user.last_sign_in_at).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })
+          : "–",
       }}
     />
   );

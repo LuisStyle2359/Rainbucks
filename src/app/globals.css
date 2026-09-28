@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Rainbucks Design-System: OLED Dark × Cyberpunk Neon Luxury
+   Rainbucks design system: OLED dark × cyberpunk neon luxury
    ============================================================ */
 
 @theme inline {
@@ -11,7 +11,7 @@
 }
 
 @theme {
-  /* Flächen: echtes Schwarz für OLED, darüber feine Graustufen */
+  /* Surfaces: true black for OLED, fine greys on top */
   --color-oled: #000000;
   --color-ink-950: #050506;
   --color-ink-900: #0a0b0d;
@@ -19,15 +19,16 @@
   --color-ink-700: #1a1d23;
   --color-ink-600: #262a32;
 
-  /* Akzente */
-  --color-toxic: #39ff14; /* Gewinn / Profit */
+  /* Accents */
+  --color-toxic: #39ff14; /* win / profit */
   --color-toxic-300: #a4ff8e;
   --color-toxic-900: #0c2b06;
-  --color-neon-red: #ff2d55; /* Verlust / Crash */
+  --color-neon-red: #ff2d55; /* loss / crash */
   --color-neon-red-300: #ff8fa4;
   --color-neon-red-900: #33060f;
-  --color-gold: #ffd23f; /* große Gewinne */
-  --color-cyan: #22e4ff; /* neutrale Highlights */
+  --color-gold: #ffd23f; /* big wins */
+  --color-cyan: #22e4ff; /* neutral highlights */
+  --color-pink: #ff4fd8; /* epic wins */
 
   --shadow-glow-toxic: 0 0 0 1px rgb(57 255 20 / 0.45), 0 0 28px -4px rgb(57 255 20 / 0.55);
   --shadow-glow-red: 0 0 0 1px rgb(255 45 85 / 0.45), 0 0 28px -4px rgb(255 45 85 / 0.55);
@@ -36,6 +37,14 @@
   --animate-glow-pulse: glow-pulse 2.6s ease-in-out infinite;
   --animate-float: float 6s ease-in-out infinite;
   --animate-shimmer: shimmer 2.4s linear infinite;
+  --animate-gem-shine: gem-shine 3.4s ease-in-out infinite;
+  --animate-twinkle: twinkle 2.2s ease-in-out infinite;
+  --animate-sweep: sweep 3s ease-in-out infinite;
+  --animate-glow-breathe: glow-breathe 2.4s ease-in-out infinite;
+  --animate-glow-breathe-gold: glow-breathe-gold 1.2s ease-in-out infinite;
+  --animate-drift: drift 22s ease-in-out infinite;
+  --animate-wiggle: wiggle 2.6s ease-in-out infinite;
+  --animate-spin-slow: rays-spin 16s linear infinite;
 
   @keyframes glow-pulse {
     0%,
@@ -65,24 +74,129 @@
       background-position: 200% 0;
     }
   }
+
+  /* Light band sweeping across a gem (SVG units) */
+  @keyframes gem-shine {
+    0%,
+    45% {
+      transform: translateX(0) skewX(-18deg);
+    }
+    100% {
+      transform: translateX(96px) skewX(-18deg);
+    }
+  }
+
+  @keyframes twinkle {
+    0%,
+    100% {
+      opacity: 0;
+      transform: scale(0.2) rotate(0deg);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1) rotate(90deg);
+    }
+  }
+
+  /* Glossy highlight running across buttons */
+  @keyframes sweep {
+    0% {
+      transform: translateX(-160%) skewX(-20deg);
+    }
+    55%,
+    100% {
+      transform: translateX(360%) skewX(-20deg);
+    }
+  }
+
+  /* Call-to-action buttons breathe; cashout pulses faster (it is urgent) */
+  @keyframes glow-breathe {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px rgb(57 255 20 / 0.45),
+        0 0 22px -6px rgb(57 255 20 / 0.5);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgb(57 255 20 / 0.75),
+        0 0 40px -2px rgb(57 255 20 / 0.85);
+    }
+  }
+
+  @keyframes glow-breathe-gold {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px rgb(255 210 63 / 0.5),
+        0 0 24px -6px rgb(255 210 63 / 0.55);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px rgb(255 210 63 / 0.85),
+        0 0 44px -2px rgb(255 210 63 / 0.95);
+    }
+  }
+
+  @keyframes drift {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    33% {
+      transform: translate3d(6vw, -5vh, 0) scale(1.12);
+    }
+    66% {
+      transform: translate3d(-5vw, 4vh, 0) scale(0.94);
+    }
+  }
+
+  @keyframes rays-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes wiggle {
+    0%,
+    72%,
+    100% {
+      transform: rotate(0deg);
+    }
+    76% {
+      transform: rotate(-14deg);
+    }
+    80% {
+      transform: rotate(12deg);
+    }
+    84% {
+      transform: rotate(-9deg);
+    }
+    88% {
+      transform: rotate(6deg);
+    }
+    92% {
+      transform: rotate(-3deg);
+    }
+  }
 }
 
-/* Glas-Panel: halbtransparent, 20px Blur, feine 1px-Kante */
+/* Glass panel: translucent, 20px blur, fine 1px edge */
 @utility glass {
   background-color: rgb(255 255 255 / 0.035);
-  /* nur die Standard-Eigenschaft: das -webkit-Präfix ergänzt der Build automatisch */
+  /* standard property only: the build adds the -webkit- prefix itself */
   backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid rgb(255 255 255 / 0.08);
 }
 
-/* Dichtere Variante für Leisten, die über Inhalt schweben */
+/* Denser variant for bars that float above content */
 @utility glass-strong {
   background-color: rgb(8 9 11 / 0.78);
   backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid rgb(255 255 255 / 0.08);
 }
 
-/* Leuchtende Kante oben – wirkt wie eine Lichtkante auf Glas */
+/* Glowing top edge, like light catching the edge of glass */
 @utility glass-edge {
   position: relative;
   &::before {
@@ -110,6 +224,13 @@
   text-shadow:
     0 0 10px rgb(57 255 20 / 0.55),
     0 0 36px rgb(57 255 20 / 0.3);
+}
+
+@utility neon-text-gold {
+  color: var(--color-gold);
+  text-shadow:
+    0 0 10px rgb(255 210 63 / 0.6),
+    0 0 36px rgb(255 210 63 / 0.35);
 }
 
 @utility neon-text-red {
@@ -159,7 +280,7 @@
     outline-offset: 2px;
   }
 
-  /* Zahlen-Eingaben ohne Pfeile */
+  /* Number inputs without spinners */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
@@ -170,7 +291,7 @@
     appearance: textfield;
   }
 
-  /* Range-Slider im Neon-Look */
+  /* Range slider in the neon look */
   input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
@@ -217,5 +338,16 @@
   select option {
     background: var(--color-ink-900);
     color: #e8eaef;
+  }
+
+  /* Respect "reduce motion": loops stop, one-shot effects finish instantly */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

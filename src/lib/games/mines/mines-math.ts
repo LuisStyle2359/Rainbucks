@@ -4,14 +4,14 @@ import { HOUSE_EDGE, MAX_MULTIPLIER, MINES_TILES } from "@/lib/fairness/provably
 export const MIN_MINES = 1;
 export const MAX_MINES = MINES_TILES - 1;
 
-/** Anzahl Diamanten auf dem Feld. */
+/** Number of gems on the board. */
 export function gemCount(mines: number): number {
   return MINES_TILES - mines;
 }
 
 /**
- * Wahrscheinlichkeit, `gems` Diamanten hintereinander aufzudecken:
- * P = Π (25 − Minen − i) / (25 − i)   für i = 0 … gems−1
+ * Probability of revealing `gems` gems in a row:
+ * P = Π (25 − mines − i) / (25 − i)   for i = 0 … gems−1
  */
 export function minesWinChance(mines: number, gems: number): number {
   let chance = 1;
@@ -22,9 +22,9 @@ export function minesWinChance(mines: number, gems: number): number {
 }
 
 /**
- * Fairer Multiplikator = (1 − Hausvorteil) / Gewinnwahrscheinlichkeit,
- * auf 2 Nachkommastellen abgeschnitten.
- * Beispiel: 3 Minen, 1 Diamant → 0,99 × 25/22 = 1,125 → 1,12×
+ * Fair multiplier = (1 − house edge) / win probability,
+ * truncated to 2 decimals.
+ * Example: 3 mines, 1 gem → 0.99 × 25/22 = 1.125 → 1.12×
  */
 export function minesMultiplier(mines: number, gems: number): number {
   if (gems <= 0) return 1;

@@ -8,6 +8,8 @@ export interface GameInfo {
   href: `/casino/${GameId}`;
   tagline: string;
   description: string;
+  /** Short label on the lobby card */
+  badge: string;
 }
 
 export const GAMES: Record<GameId, GameInfo> = {
@@ -15,35 +17,39 @@ export const GAMES: Record<GameId, GameInfo> = {
     id: "crash",
     name: "Crash",
     href: "/casino/crash",
-    tagline: "Steig aus, bevor die Rakete explodiert.",
-    description: "Der Multiplikator steigt exponentiell. Cashe rechtzeitig aus.",
+    tagline: "Cash out before the rocket explodes.",
+    description: "The multiplier climbs exponentially. Get out in time.",
+    badge: "Live rounds",
   },
   mines: {
     id: "mines",
     name: "Mines",
     href: "/casino/mines",
-    tagline: "Finde Diamanten, meide die Minen.",
-    description: "5×5 Felder, 1 bis 24 Minen. Jeder Diamant erhöht den Gewinn.",
+    tagline: "Find the gems, dodge the mines.",
+    description: "5×5 tiles, 1 to 24 mines. Every gem raises your win.",
+    badge: "Strategy",
   },
   limbo: {
     id: "limbo",
     name: "Limbo",
     href: "/casino/limbo",
-    tagline: "Wähle dein Ziel. Das Glück entscheidet.",
-    description: "Liegt das Ergebnis über deinem Ziel-Multiplikator, gewinnst du.",
+    tagline: "Pick your target. Let the numbers roll.",
+    description: "Win when the result lands above your target multiplier.",
+    badge: "Instant",
   },
   plinko: {
     id: "plinko",
     name: "Plinko",
     href: "/casino/plinko",
-    tagline: "Echte Physik, fallende Kugeln.",
-    description: "Kugeln prallen an Pins ab und landen in Multiplikator-Fächern.",
+    tagline: "Real physics, falling balls.",
+    description: "Balls bounce off pins and drop into multiplier slots.",
+    badge: "Physics",
   },
 };
 
 export const GAME_IDS = Object.keys(GAMES) as GameId[];
 
-/** Details, die je nach Spiel zu einer Wette gespeichert werden. */
+/** Game-specific details stored with every bet. */
 export type BetDetails =
   | {
       game: "crash";

@@ -4,22 +4,22 @@ import type { ClientToServerEvents, ServerToClientEvents } from "./types";
 type Listener<T> = (payload: T) => void;
 type ServerEvent = keyof ServerToClientEvents;
 
-/** Nachrichten, die zwischen Tabs desselben Browsers ausgetauscht werden. */
+/** Messages exchanged between tabs of the same browser. */
 type TabMessage = {
   [E in ServerEvent]: { event: E; payload: ServerToClientEvents[E] };
 }[ServerEvent];
 
 /**
- * Simulierter WebSocket mit derselben API-Form wie Socket.io:
+ * Simulated WebSocket with the same API shape as Socket.io:
  *
  *   const socket = getSocket();
  *   socket.on("chat:message", (msg) => …);
  *   socket.emit("chat:send", { user, text });
  *
- * Statt eines echten Servers erzeugen Bots Chat-Nachrichten und Wetten.
- * Eigene Nachrichten gehen über einen BroadcastChannel auch an andere Tabs.
- * Für einen echten Server würde man nur diese Klasse durch socket.io-client
- * ersetzen, die Komponenten bleiben gleich.
+ * Instead of a real server, bots create chat messages and bets.
+ * Your own messages also reach other tabs through a BroadcastChannel.
+ * For a real server you would only swap this class for socket.io-client;
+ * the components stay the same.
  */
 export class SimulatedSocket {
   connected = false;
@@ -42,7 +42,7 @@ export class SimulatedSocket {
 
   emit<E extends keyof ClientToServerEvents>(event: E, payload: ClientToServerEvents[E]): void {
     if (!this.connected) return;
-    // Hinweg zum "Server" + Verarbeitung + Rückweg ≈ 40–110 ms
+    // Trip to the "server" + processing + trip back ≈ 40–110 ms
     this.later(randomInt(20, 55), () => this.handleClientEvent(event, payload));
   }
 
@@ -57,7 +57,7 @@ export class SimulatedSocket {
       };
     }
 
-    // Verlauf, damit Chat und Feed nicht leer starten (nur beim ersten Verbinden)
+    // Some history so chat and feed do not start empty (first connect only)
     if (!this.seeded) {
       this.seeded = true;
       for (let i = 0; i < 8; i++) {
@@ -105,7 +105,7 @@ export class SimulatedSocket {
     }
   }
 
-  /** An diesen Tab ausliefern und an andere Tabs weiterreichen. */
+  /** Deliver to this tab and pass on to other tabs. */
   private broadcast(message: TabMessage): void {
     this.dispatch(message);
     this.channel?.postMessage(message);
@@ -129,7 +129,7 @@ export class SimulatedSocket {
     this.timers.add(timer);
   }
 
-  /** Wiederkehrendes Event mit zufälligem Abstand. Pausiert im Hintergrund-Tab. */
+  /** Recurring event with a random interval. Pauses in background tabs. */
   private loop(minMs: number, maxMs: number, fn: () => void): void {
     const tick = () => {
       if (!this.connected) return;
@@ -142,7 +142,7 @@ export class SimulatedSocket {
 
 let socket: SimulatedSocket | null = null;
 
-/** Eine Verbindung pro Tab (wie ein echter Socket). */
+/** One connection per tab (like a real socket). */
 export function getSocket(): SimulatedSocket {
   socket ??= new SimulatedSocket();
   return socket;

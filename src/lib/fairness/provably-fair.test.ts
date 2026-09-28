@@ -9,23 +9,23 @@ const seeds: SeedPair = {
 };
 
 describe("ProvablyFair", () => {
-  it("berechnet HMAC-SHA256 identisch zu Node crypto", () => {
+  it("computes HMAC-SHA256 exactly like Node crypto", () => {
     const expected = createHmac("sha256", seeds.serverSeed).update("rainbucks-test:42:0").digest();
     expect(Buffer.from(ProvablyFair.hmacSha256(seeds.serverSeed, "rainbucks-test:42:0"))).toEqual(expected);
   });
 
-  it("hasht den Server-Seed mit SHA-256", () => {
+  it("hashes the server seed with SHA-256", () => {
     const expected = createHash("sha256").update(seeds.serverSeed).digest("hex");
     expect(ProvablyFair.hashServerSeed(seeds.serverSeed)).toBe(expected);
   });
 
-  it("hängt für mehr als 32 Bytes weitere HMAC-Blöcke mit Cursor an", () => {
+  it("appends more HMAC blocks with a cursor for more than 32 bytes", () => {
     const bytes = ProvablyFair.bytes(seeds, 40);
     const second = createHmac("sha256", seeds.serverSeed).update("rainbucks-test:42:1").digest();
     expect(Buffer.from(bytes.subarray(32))).toEqual(second.subarray(0, 8));
   });
 
-  it("liefert deterministische Floats in [0, 1)", () => {
+  it("yields deterministic floats in [0, 1)", () => {
     const a = ProvablyFair.floats(seeds, 50);
     const b = ProvablyFair.floats(seeds, 50);
     expect(a).toEqual(b);
@@ -35,20 +35,20 @@ describe("ProvablyFair", () => {
     }
   });
 
-  it("verändert das Ergebnis bei anderer Nonce oder anderem Client-Seed", () => {
+  it("changes the result for another nonce or client seed", () => {
     const base = ProvablyFair.float(seeds);
     expect(ProvablyFair.float({ ...seeds, nonce: 43 })).not.toBe(base);
     expect(ProvablyFair.float({ ...seeds, clientSeed: "anders" })).not.toBe(base);
   });
 
-  it("berechnet Multiplikatoren mit 1 % Hausvorteil", () => {
+  it("computes multipliers with a 1% house edge", () => {
     expect(ProvablyFair.multiplierFromFloat(0)).toBe(1);
     expect(ProvablyFair.multiplierFromFloat(0.5)).toBe(1.98);
     expect(ProvablyFair.multiplierFromFloat(0.505)).toBe(2);
     expect(ProvablyFair.multiplierFromFloat(0.99)).toBe(99);
   });
 
-  it("trifft 2× in etwa 49,5 % der Fälle (Monte Carlo)", () => {
+  it("hits 2× in about 49.5% of cases (Monte Carlo)", () => {
     const runs = 100_000;
     let hits = 0;
     for (let nonce = 0; nonce < runs; nonce++) {
@@ -58,7 +58,7 @@ describe("ProvablyFair", () => {
     expect(hits / runs).toBeLessThan(0.505);
   });
 
-  it("verteilt Minen eindeutig und reproduzierbar", () => {
+  it("places mines uniquely and reproducibly", () => {
     for (let mines = 1; mines < MINES_TILES; mines++) {
       const positions = ProvablyFair.minePositions(seeds, mines);
       expect(positions).toHaveLength(mines);
@@ -69,13 +69,13 @@ describe("ProvablyFair", () => {
     expect(() => ProvablyFair.minePositions(seeds, 0)).toThrow(RangeError);
   });
 
-  it("baut Plinko-Pfade mit passendem Fach", () => {
+  it("builds Plinko paths with the matching slot", () => {
     const path = ProvablyFair.plinkoPath(seeds, 16);
     expect(path).toHaveLength(16);
     expect(ProvablyFair.plinkoBin(path)).toBe(path.filter((step) => step === 1).length);
   });
 
-  it("verifiziert Hash und Ergebnis", () => {
+  it("verifies hash and result", () => {
     const hash = ProvablyFair.hashServerSeed(seeds.serverSeed);
     const ok = ProvablyFair.verify({ ...seeds, expectedServerSeedHash: hash.toUpperCase() }, { game: "limbo" });
     expect(ok.hashMatches).toBe(true);

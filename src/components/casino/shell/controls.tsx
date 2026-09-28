@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { useLiveStore } from "@/lib/stores/live-store";
 import { useSettingsStore, useUiStore } from "@/lib/stores/settings-store";
 
-// Bedienelemente der Top-Bar ohne Next.js-Abhängigkeiten (auch in der Demo nutzbar).
+// Top bar controls without Next.js dependencies (also used by the demo).
 
 export function Logo({ className }: { className?: string }) {
   return (
@@ -40,7 +40,7 @@ function IconButton({
         onClick();
       }}
       className={cn(
-        "glass relative grid size-10 place-items-center rounded-xl transition hover:border-toxic/40 hover:text-toxic",
+        "glass relative grid size-9 place-items-center rounded-xl transition hover:border-toxic/40 hover:text-toxic sm:size-10",
         active ? "text-toxic" : "text-zinc-300",
       )}
     >
@@ -54,7 +54,7 @@ export function SoundToggle() {
   const muted = useSettingsStore((s) => s.muted);
   const toggleMuted = useSettingsStore((s) => s.toggleMuted);
   return (
-    <IconButton label={muted ? "Ton einschalten" : "Ton ausschalten"} onClick={toggleMuted} active={!muted}>
+    <IconButton label={muted ? "Turn sound on" : "Turn sound off"} onClick={toggleMuted} active={!muted}>
       {muted ? <SoundOffIcon className="size-5" /> : <SoundOnIcon className="size-5" />}
     </IconButton>
   );
@@ -65,10 +65,10 @@ export function LiveToggle() {
   const livePanelOpen = useSettingsStore((s) => s.livePanelOpen);
   return (
     <IconButton
-      label="Chat und Live-Wetten"
+      label="Chat and live bets"
       active={livePanelOpen}
       onClick={() => {
-        // Ab 1280px gibt es die feste Seitenleiste, darunter eine Schublade.
+        // From 1280px there is the fixed sidebar, below that a drawer.
         if (window.matchMedia("(min-width: 1280px)").matches) {
           useSettingsStore.getState().setLivePanelOpen(!livePanelOpen);
         } else {

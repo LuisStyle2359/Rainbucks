@@ -1,6 +1,6 @@
 import { cn } from "@/lib/cn";
 
-/** Rainbucks-Münze (virtuelle Währung RBX). */
+/** Rainbucks coin (virtual currency RBX). */
 export function Coin({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden className={cn("size-4 shrink-0", className)}>

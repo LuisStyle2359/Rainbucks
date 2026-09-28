@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
-// Baut eine eigenständige Gast-Demo (ohne Login und Server) aus denselben Spiel-Komponenten.
+// Builds a standalone guest demo (no login, no server) from the same game components.
 export default defineConfig({
   root: fileURLToPath(new URL(".", import.meta.url)),
   base: "./",
@@ -16,7 +16,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1_000,
     rolldownOptions: {
       output: { entryFileNames: "app.js", assetFileNames: "app.[ext]" },
-      // "use client" ist nur für Next.js relevant, im Demo-Bundle bedeutungslos
+      // "use client" only matters for Next.js; it means nothing in the demo bundle
       onwarn(warning, warn) {
         if (warning.code !== "MODULE_LEVEL_DIRECTIVE") warn(warning);
       },

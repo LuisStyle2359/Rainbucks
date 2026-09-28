@@ -4,12 +4,12 @@ import { RegisterForm } from "./register-form";
 
 export default function RegisterPage() {
   return (
-    <AuthCard title="Konto erstellen" subtitle="Kostenlos und in wenigen Sekunden.">
+    <AuthCard title="Create account" subtitle="Free and done in a few seconds.">
       <RegisterForm />
       <p className="mt-6 text-center text-sm text-zinc-400">
-        Schon registriert?{" "}
+        Already registered?{" "}
         <Link href="/login" className="font-semibold text-toxic hover:underline">
-          Zum Login
+          Log in
         </Link>
       </p>
     </AuthCard>

@@ -8,14 +8,14 @@ interface SegmentedProps<T extends string | number> {
   options: readonly { value: T; label: string }[];
   value: T;
   onChange: (value: T) => void;
-  /** Eindeutige ID für die Shared-Layout-Animation des aktiven Hintergrunds. */
+  /** Unique id for the shared layout animation of the active background. */
   layoutId: string;
   disabled?: boolean;
   size?: "sm" | "md";
   className?: string;
 }
 
-/** Umschalter, dessen aktive Markierung per Shared Layout Animation gleitet. */
+/** Toggle whose active marker glides via a shared layout animation. */
 export function Segmented<T extends string | number>({
   options,
   value,
