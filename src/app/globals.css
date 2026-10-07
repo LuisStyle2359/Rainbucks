@@ -45,6 +45,10 @@
   --animate-drift: drift 22s ease-in-out infinite;
   --animate-wiggle: wiggle 2.6s ease-in-out infinite;
   --animate-spin-slow: rays-spin 16s linear infinite;
+  --animate-coin-spin: coin-spin 7s linear infinite;
+  --animate-grid-scroll: grid-scroll 2.4s linear infinite;
+  --animate-card-turn: card-turn 9s ease-in-out infinite;
+  --animate-hover-3d: hover-3d 7s ease-in-out infinite;
 
   @keyframes glow-pulse {
     0%,
@@ -154,6 +158,55 @@
   @keyframes rays-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  /* Coin spinning around its vertical axis (3D, needs a perspective parent) */
+  @keyframes coin-spin {
+    from {
+      transform: rotateX(12deg) rotateY(0deg);
+    }
+    to {
+      transform: rotateX(12deg) rotateY(360deg);
+    }
+  }
+
+  /* Floor grid running towards the viewer: one cell per loop */
+  @keyframes grid-scroll {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(48px);
+    }
+  }
+
+  /* A card that slowly turns over, pauses, and turns back */
+  @keyframes card-turn {
+    0%,
+    30% {
+      transform: rotateY(0deg);
+    }
+    50%,
+    80% {
+      transform: rotateY(180deg);
+    }
+    100% {
+      transform: rotateY(360deg);
+    }
+  }
+
+  /* Weightless drift in 3D for floating scene objects */
+  @keyframes hover-3d {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotateX(0deg) rotateZ(0deg);
+    }
+    33% {
+      transform: translate3d(0, -14px, 20px) rotateX(10deg) rotateZ(3deg);
+    }
+    66% {
+      transform: translate3d(0, 8px, -10px) rotateX(-6deg) rotateZ(-2deg);
     }
   }
 

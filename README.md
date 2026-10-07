@@ -79,7 +79,7 @@ rainbucks/
     │   │   └── casino/
     │   │       ├── page.tsx              lobby
     │   │       ├── template.tsx          page transitions
-    │   │       ├── crash/ · mines/ · limbo/ · plinko/
+    │   │       ├── crash/ · mines/ · limbo/ · plinko/ · blackjack/ · roulette/
     │   │       └── fairness/page.tsx     manage seeds + verify results
     │   └── auth/                         Server Actions (login/logout) + email confirmation
     ├── components/
@@ -90,14 +90,17 @@ rainbucks/
     │   │   ├── bonus/                    free bonus wheel (gift button, dialog, lobby card)
     │   │   ├── bet-panel/                standard bet panel + useAutoBet hook
     │   │   ├── lobby/ · dashboard/       lobby (animated previews, tilt cards) and dashboard
-    │   │   └── ui/                       NeonButton, Segmented, icons, Coin, DecimalField
+    │   │   └── ui/                       NeonButton, Segmented, icons, Coin, DecimalField, 3D chips, card faces
     │   ├── games/
     │   │   ├── crash/                    CrashGame, CrashCanvas, player list, history
     │   │   ├── mines/                    MinesGameView, MinesTile (3D flip), gem + bomb icons
     │   │   ├── limbo/                    LimboGame, Odometer
-    │   │   └── plinko/                   PlinkoGame
+    │   │   ├── plinko/                   PlinkoGame
+    │   │   ├── blackjack/                table, shoe, dealt cards with flight + flip
+    │   │   └── roulette/                 3D wheel, betting board, results strip
+    │   ├── fx/                           3D building blocks: tilt card, scroll reveal, floating scene, coin/chip discs, floor grid
     │   ├── fairness/fairness-view.tsx
-    │   └── site/                         header + form building blocks of the public pages
+    │   └── site/                         header, landing hero + form building blocks of the public pages
     └── lib/
         ├── stores/                       zustand: wallet, fairness, settings, live + hydration
         ├── fairness/provably-fair.ts     HMAC-SHA256, seeds, game results, verification
@@ -105,7 +108,9 @@ rainbucks/
         │   ├── crash/                    crash-engine.ts (state machine), crash-renderer.ts (canvas)
         │   ├── mines/                    mines-game.ts (logic), mines-math.ts (multipliers)
         │   ├── limbo/limbo-math.ts
-        │   └── plinko/                   payouts.ts, plinko-physics.ts (matter.js), plinko-renderer.ts
+        │   ├── plinko/                   payouts.ts, plinko-physics.ts (matter.js), plinko-renderer.ts
+        │   ├── blackjack/blackjack-game.ts
+        │   └── roulette/                 roulette-math.ts, wheel-motion.ts (ball + rotor), wheel-renderer.ts
         ├── canvas/                       particle system, celebration renderer (coins, confetti)
         ├── audio/audio-engine.ts         Web Audio synthesis + vibration
         ├── realtime/                     simulated socket + bots
@@ -189,6 +194,14 @@ Files: [`celebration-layer.tsx`](src/components/casino/celebrations/celebration-
 
 - **Blackjack** ([`blackjack-game.ts`](src/lib/games/blackjack/blackjack-game.ts)): hit, stand or double down against a dealer who stands on all 17s. Blackjack pays 3:2. Cards are dealt from a provably-fair stream (`card = floor(float · 52)`, an infinite shoe) so any hand length stays verifiable; the fairness page shows the exact deal order.
 - **Roulette** ([`roulette-math.ts`](src/lib/games/roulette/roulette-math.ts)): a European single-zero wheel (`pocket = floor(float · 37)`). Place chips on straight numbers (35:1), dozens and columns (2:1) or the even-money bets (red/black, even/odd, 1–18/19–36), then spin the animated wheel. Several bets settle together with a cent-exact payout, so the credited amount never drifts from the sum of the winning bets.
+- **The table plays it out:** Blackjack resolves a round instantly, then the table replays it card by card. Cards fly out of a 3D shoe and turn over in the air, the hole card flips, the dealer draws one card at a time, chips are taken or paid. The bet is only settled once the result is on screen (and immediately if you leave), so coins and win screens never spoil the dealer's draw.
+- **A real wheel:** the roulette wheel is a tilted 3D plane with a wooden bowl and a turning rotor. The ball is thrown against the rotor, slows on the track, drops, bounces over the frets and comes to rest in the pocket that the provably-fair result already fixed ([`wheel-motion.ts`](src/lib/games/roulette/wheel-motion.ts), tested for every pocket). It runs per frame outside React ([`wheel-renderer.ts`](src/lib/games/roulette/wheel-renderer.ts)) and is projected onto the tilted plane by hand, so it stays a round sphere. 3D chips drop onto the board, hovering an outside bet lights up the numbers it covers, and a marker drops onto the winning number.
+
+## 3D and motion
+
+- **Landing page:** casino objects float in 3D (a spinning coin, chips with thick rims, cards that turn over) and lean towards the mouse, over a neon floor grid that runs towards you. The headline swings up word by word; sections swing up as they scroll into view.
+- **Everywhere else:** lobby cards tilt in 3D with a moving glare, lobby sections and game titles enter in 3D, the auth card rises out of the floor grid, the logo flips on hover.
+- Built from CSS 3D transforms and Motion (no WebGL), so it stays light. With "reduce motion" the scenes stand still and only fades remain.
 
 ## More systems
 
@@ -211,7 +224,7 @@ Files: [`celebration-layer.tsx`](src/components/casino/celebrations/celebration-
 npm test
 ```
 
-47 tests: HMAC against Node `crypto`, distribution (2× in ~49.5%), mine positions, all 27 Plinko tables (length, symmetry, RTP), Mines RTP for every combination, exact cent math, Crash engine (auto cashout, crash, manual cashout, refund), Plinko physics, VIP levels, the bonus wheel's equal odds, the coin/balance sync, roulette payouts and house edge, and blackjack hand values and rounds.
+51 tests: HMAC against Node `crypto`, distribution (2× in ~49.5%), mine positions, all 27 Plinko tables (length, symmetry, RTP), Mines RTP for every combination, exact cent math, Crash engine (auto cashout, crash, manual cashout, refund), Plinko physics, VIP levels, the bonus wheel's equal odds, the coin/balance sync, roulette payouts and house edge, the roulette ball landing in the right pocket, and blackjack hand values and rounds.
 
 ---
 

@@ -164,8 +164,8 @@ function DemoTopBar({ ready, view }: { ready: boolean; view: View }) {
   return (
     <header className="sticky top-[env(safe-area-inset-top,0px)] z-50 border-b border-white/[0.06] bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-[1800px] items-center gap-3 px-3 sm:px-5">
-        <a href="#lobby" className="flex items-center gap-2.5" onClick={() => audio.play("click")}>
-          <span className="grid size-8 place-items-center rounded-lg bg-toxic/10 ring-1 ring-toxic/40 shadow-[0_0_20px_-4px_rgb(57_255_20/0.7)]">
+        <a href="#lobby" className="group flex items-center gap-2.5 [perspective:400px]" onClick={() => audio.play("click")}>
+          <span className="grid size-8 place-items-center rounded-lg bg-toxic/10 shadow-[0_0_20px_-4px_rgb(57_255_20/0.7)] ring-1 ring-toxic/40 transition-transform duration-700 ease-out group-hover:[transform:rotateY(360deg)]">
             <span className="font-display text-sm font-bold text-toxic">R</span>
           </span>
           <Logo className="hidden sm:inline" />

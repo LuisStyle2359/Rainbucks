@@ -165,6 +165,147 @@ export function GameArt({ game }: { game: GameId }) {
         </svg>
       );
     }
+    case "blackjack": {
+      // Two cards slide out of the shoe; the second one turns over: blackjack.
+      const cycle = "4.2s";
+      const cards = [
+        { rank: "A", suit: "♠", color: "#18181b", x: 58, y: 34, rotate: -8, start: 0.05 },
+        { rank: "K", suit: "♥", color: "#e0193f", x: 90, y: 30, rotate: 7, start: 0.22 },
+      ];
+      return (
+        <svg viewBox="0 0 200 120" className="h-full w-full" aria-hidden>
+          <defs>
+            <pattern id={`${id}-back`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <rect width="6" height="6" fill="#04120a" />
+              <rect width="3" height="6" fill="#39ff14" fillOpacity="0.18" />
+            </pattern>
+          </defs>
+          <path d="M-10 118 Q100 40 210 118" fill="none" stroke="#39ff14" strokeOpacity="0.25" strokeWidth="1.5" />
+          <text x="100" y="112" textAnchor="middle" fill="#39ff14" fillOpacity="0.45" fontSize="7" letterSpacing="2.5" style={MONO}>
+            PAYS 3 TO 2
+          </text>
+          {/* shoe */}
+          {[0, 1, 2, 3].map((i) => (
+            <rect key={i} x={160 - i} y={8 - i * 1.4} width="26" height="36" rx="3" fill={`url(#${id}-back)`} stroke="#39ff14" strokeOpacity="0.45" transform="rotate(14 173 26)" />
+          ))}
+          {cards.map((card, i) => {
+            const end = card.start + 0.14;
+            const flipStart = i === 1 ? 0.42 : end;
+            const position = `translate(${card.x} ${card.y}) rotate(${card.rotate} 15 21)`;
+            return (
+              <g key={card.rank} transform={animated ? undefined : position}>
+                {animated && (
+                  <>
+                    <animateTransform
+                      attributeName="transform"
+                      type="translate"
+                      values={`160 8;160 8;${card.x} ${card.y};${card.x} ${card.y}`}
+                      keyTimes={`0;${card.start};${end};1`}
+                      calcMode="spline"
+                      keySplines="0 0 1 1;0.2 0.8 0.3 1;0 0 1 1"
+                      dur={cycle}
+                      repeatCount="indefinite"
+                    />
+                    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes={`0;${card.start};${card.start + 0.01};0.93;1`} dur={cycle} repeatCount="indefinite" />
+                  </>
+                )}
+                <g transform={`rotate(${card.rotate} 15 21)`}>
+                  {/* face */}
+                  <g>
+                    <rect width="30" height="42" rx="3.5" fill="#f4f5f7" stroke="#000" strokeOpacity="0.15" />
+                    <text x="4" y="11" fill={card.color} fontSize="9" fontWeight="800" style={MONO}>
+                      {card.rank}
+                    </text>
+                    <text x="15" y="29" textAnchor="middle" fill={card.color} fontSize="16">
+                      {card.suit}
+                    </text>
+                    {animated && i === 1 && (
+                      <animate attributeName="opacity" calcMode="discrete" values="0;1;1" keyTimes={`0;${flipStart + 0.04};1`} dur={cycle} repeatCount="indefinite" />
+                    )}
+                  </g>
+                  {/* back, turned over by squeezing it to an edge */}
+                  {animated && i === 1 && (
+                    <g>
+                      <rect width="30" height="42" rx="3.5" fill={`url(#${id}-back)`} stroke="#39ff14" strokeOpacity="0.5" />
+                      <animate attributeName="opacity" calcMode="discrete" values="1;0;0" keyTimes={`0;${flipStart + 0.04};1`} dur={cycle} repeatCount="indefinite" />
+                    </g>
+                  )}
+                  {animated && i === 1 && (
+                    <animateTransform
+                      attributeName="transform"
+                      type="scale"
+                      additive="sum"
+                      values="1 1;1 1;0.02 1;1 1;1 1"
+                      keyTimes={`0;${flipStart};${flipStart + 0.04};${flipStart + 0.08};1`}
+                      dur={cycle}
+                      repeatCount="indefinite"
+                    />
+                  )}
+                </g>
+              </g>
+            );
+          })}
+          <g opacity={animated ? 0 : 1}>
+            <rect x="128" y="62" width="58" height="18" rx="5" fill="#ffd23f" fillOpacity="0.15" stroke="#ffd23f" strokeOpacity="0.7" />
+            <text x="157" y="74.5" textAnchor="middle" fill="#ffd23f" fontSize="9" fontWeight="800" letterSpacing="1" style={MONO}>
+              BLACKJACK
+            </text>
+            {animated && <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.55;0.6;0.92;1" dur={cycle} repeatCount="indefinite" />}
+          </g>
+        </svg>
+      );
+    }
+    case "roulette": {
+      // A tilted wheel turning one way, the ball circling the other way.
+      const colors = ["#0b8a3a", ...Array.from({ length: 36 }, (_, i) => (i % 2 ? "#15171b" : "#d61a3c"))];
+      const seg = 360 / colors.length;
+      const wedge = (i: number) => {
+        const a0 = ((i * seg - seg / 2) * Math.PI) / 180;
+        const a1 = ((i * seg + seg / 2) * Math.PI) / 180;
+        const p = (a: number, r: number) => `${(r * Math.sin(a)).toFixed(2)} ${(-r * Math.cos(a)).toFixed(2)}`;
+        return `M${p(a0, 50)}A50 50 0 0 1 ${p(a1, 50)}L${p(a1, 34)}A34 34 0 0 0 ${p(a0, 34)}Z`;
+      };
+      const orbit = "M100 36 A60 27 0 1 0 100.01 36";
+      return (
+        <svg viewBox="0 0 200 120" className="h-full w-full" aria-hidden>
+          <defs>
+            <radialGradient id={`${id}-cone`} cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0.3" stopColor="#7a4e1d" />
+              <stop offset="1" stopColor="#2a1808" />
+            </radialGradient>
+          </defs>
+          <ellipse cx="100" cy="70" rx="72" ry="34" fill="#140b04" stroke="#ffd23f" strokeOpacity="0.4" />
+          <g transform="translate(100 63) scale(1 0.45)">
+            <circle r="68" fill="#1d1f24" stroke="#ffd23f" strokeOpacity="0.7" strokeWidth="2" />
+            <g>
+              {colors.map((color, i) => (
+                <path key={i} d={wedge(i)} fill={color} />
+              ))}
+              <circle r="34" fill={`url(#${id}-cone)`} />
+              <path d="M0 -26V26M-26 0H26" stroke="#ffd23f" strokeWidth="3" strokeLinecap="round" />
+              {animated && <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="7s" repeatCount="indefinite" />}
+            </g>
+            <circle r="9" fill="#39ff14" />
+          </g>
+          <g transform={animated ? undefined : "translate(52 74)"}>
+            <circle r="4" fill="#ffffff" />
+            <circle r="7" fill="#ffffff" fillOpacity="0.15" />
+            {animated && <animateMotion path={orbit} dur="1.6s" repeatCount="indefinite" />}
+          </g>
+          {[
+            { x: 22, y: 26, color: "#39ff14" },
+            { x: 178, y: 30, color: "#ff4fd8" },
+          ].map((chip, i) => (
+            <g key={i} transform={`translate(${chip.x} ${chip.y})`}>
+              {[0, 1, 2].map((layer) => (
+                <ellipse key={layer} cx="0" cy={-layer * 3.2} rx="11" ry="5" fill={chip.color} stroke="#000" strokeOpacity="0.35" />
+              ))}
+              <ellipse cx="0" cy="-6.4" rx="6" ry="2.6" fill="none" stroke="#fff" strokeOpacity="0.8" strokeDasharray="2 1.5" />
+            </g>
+          ))}
+        </svg>
+      );
+    }
     case "plinko": {
       const colors = ["#39ff14", "#b6ff1f", "#ffd23f", "#ff8a3d", "#ff2d55", "#ff8a3d", "#ffd23f", "#b6ff1f", "#39ff14"];
       const balls = [

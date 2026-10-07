@@ -1,4 +1,6 @@
 import type { InputHTMLAttributes, ReactNode } from "react";
+import { PerspectiveGrid } from "@/components/fx/perspective-grid";
+import { AuthCardFrame } from "./auth-card-frame";
 
 export function AuthCard({
   title,
@@ -10,12 +12,15 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-1 items-center justify-center px-4 py-12">
-      <div className="glass glass-edge w-full max-w-md rounded-3xl p-8 shadow-glow-soft">
-        <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-white">{title}</h1>
-        <p className="mt-1 text-zinc-400">{subtitle}</p>
-        <div className="mt-8">{children}</div>
-      </div>
+    <div className="relative flex flex-1 items-center justify-center px-4 py-12 [perspective:1200px]">
+      <PerspectiveGrid className="h-1/2 opacity-70" />
+      <AuthCardFrame>
+        <div className="glass glass-edge w-full rounded-3xl p-8 shadow-glow-soft">
+          <h1 className="font-display text-2xl font-bold uppercase tracking-wider text-white">{title}</h1>
+          <p className="mt-1 text-zinc-400">{subtitle}</p>
+          <div className="mt-8">{children}</div>
+        </div>
+      </AuthCardFrame>
     </div>
   );
 }

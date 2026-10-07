@@ -1,68 +1,72 @@
 "use client";
 
-import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from "motion/react";
-import { useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { BetPanel, type BetAction } from "@/components/casino/bet-panel/bet-panel";
+import { ChipStack } from "@/components/casino/ui/chip";
+import { PerspectiveGrid } from "@/components/fx/perspective-grid";
 import { audio, vibrate } from "@/lib/audio/audio-engine";
 import { placeBet, settleBet } from "@/lib/casino/bets";
-import { formatAmount, formatCompactAmount, formatSignedAmount } from "@/lib/casino/money";
+import type { ScreenPoint } from "@/lib/casino/celebrations";
+import { formatAmount, formatSignedAmount } from "@/lib/casino/money";
 import { cn } from "@/lib/cn";
-import { ProvablyFair, ROULETTE_POCKETS } from "@/lib/fairness/provably-fair";
+import { ProvablyFair } from "@/lib/fairness/provably-fair";
 import {
   evaluateRoulette,
   rouletteColor,
+  rouletteSpot,
   ROULETTE_COLUMNS,
   ROULETTE_OUTSIDE,
-  type RouletteColor,
 } from "@/lib/games/roulette/roulette-math";
+import type { WheelRenderer } from "@/lib/games/roulette/wheel-renderer";
 import { consumeSeeds, toPublicSeeds } from "@/lib/stores/fairness-store";
 import { useSettingsStore } from "@/lib/stores/settings-store";
+import { useWalletStore, type BetRecord } from "@/lib/stores/wallet-store";
 import { useActiveGame } from "../use-active-game";
-
-/** Physical pocket order of a European single-zero wheel (clockwise). */
-const WHEEL_ORDER = [
-  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7,
-  28, 12, 35, 3, 26,
-];
-const SEG = 360 / ROULETTE_POCKETS;
-const WHEEL_SIZE = 300;
-const C = WHEEL_SIZE / 2;
-const R = 138;
-
-const COLOR_FILL: Record<RouletteColor, string> = { red: "#d61a3c", black: "#15171b", green: "#0b8a3a" };
-
-function point(angleDeg: number, radius: number): [number, number] {
-  const rad = (angleDeg * Math.PI) / 180;
-  return [C + radius * Math.sin(rad), C - radius * Math.cos(rad)];
-}
-function wedge(i: number): string {
-  const [x1, y1] = point(i * SEG - SEG / 2, R);
-  const [x2, y2] = point(i * SEG + SEG / 2, R);
-  return `M${C} ${C}L${x1.toFixed(2)} ${y1.toFixed(2)}A${R} ${R} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}Z`;
-}
-/** Which pocket sits under the top pointer for a given wheel rotation. */
-function pocketAt(rotation: number): number {
-  const idx = Math.round((((-rotation % 360) + 360) % 360) / SEG) % ROULETTE_POCKETS;
-  return WHEEL_ORDER[idx];
-}
+import { COLOR_FILL, RouletteWheel } from "./roulette-wheel";
 
 interface LastRound {
   result: number;
   profit: number;
   winning: string[];
+  /** The chips of the round, so winning stacks can stay on the board */
+  placed: Record<string, number>;
+}
+
+type RouletteRecord = Extract<BetRecord, { game: "roulette" }>;
+
+function centerOf(ref: RefObject<HTMLElement | null>): ScreenPoint | undefined {
+  const rect = ref.current?.getBoundingClientRect();
+  return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : undefined;
 }
 
 export function RouletteGame() {
   useActiveGame("roulette");
   const chip = useSettingsStore((s) => s.betAmounts.roulette);
-  const reducedMotion = useReducedMotion() ?? false;
+  const history = useWalletStore((s) => s.history);
   const [chips, setChips] = useState<Record<string, number>>({});
   const [spinning, setSpinning] = useState(false);
   const [last, setLast] = useState<LastRound | null>(null);
   const [hasLastBet, setHasLastBet] = useState(false);
   const lastChips = useRef<Record<string, number>>({});
-  const rotation = useMotionValue(0);
-  const [rotationDeg, setRotationDeg] = useState(0);
+  const rendererRef = useRef<WheelRenderer | null>(null);
+  const wheelRef = useRef<HTMLDivElement>(null);
+  /** Settlement of the spin in progress; flushed when the ball lands or when leaving */
+  const pending = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      const settle = pending.current;
+      pending.current = null;
+      settle?.();
+    },
+    [],
+  );
+
+  const recent = useMemo(
+    () => history.filter((bet): bet is RouletteRecord => bet.game === "roulette").slice(0, 14),
+    [history],
+  );
 
   const totalStake = useMemo(() => Object.values(chips).reduce((sum, n) => sum + n, 0), [chips]);
   const locked = spinning;
@@ -71,7 +75,7 @@ export function RouletteGame() {
     if (locked) return;
     setLast(null);
     setChips((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + chip }));
-    audio.play("click", { pitch: 1.2 });
+    audio.play("chip", { pitch: 0.95 + Math.random() * 0.1 });
   };
 
   const clear = () => {
@@ -84,64 +88,55 @@ export function RouletteGame() {
     if (locked || !hasLastBet) return;
     setChips({ ...lastChips.current });
     setLast(null);
-    audio.play("click", { pitch: 1.1 });
+    audio.play("chip");
   };
 
-  const spin = () => {
-    if (locked || totalStake <= 0) return;
+  const spin = async () => {
+    const renderer = rendererRef.current;
+    if (locked || totalStake <= 0 || !renderer) return;
     if (!placeBet(totalStake)) {
       audio.play("lose");
       return;
     }
-    lastChips.current = { ...chips };
+    const placed = { ...chips };
+    lastChips.current = placed;
     setHasLastBet(true);
-    const placedChips = { ...chips };
     setSpinning(true);
     setLast(null);
     audio.play("bet");
 
     const seeds = consumeSeeds();
     const result = ProvablyFair.rouletteResult(seeds);
-    const index = WHEEL_ORDER.indexOf(result);
-    const from = rotation.get();
-    const jitter = (Math.random() - 0.5) * SEG * 0.6;
-    const base = -index * SEG + jitter;
-    const turns = reducedMotion ? 1 : 6;
-    const delta = ((((base - from) % 360) + 360) % 360) + turns * 360;
-    let lastPocket = pocketAt(from);
-
-    void animate(rotation, from + delta, {
-      duration: reducedMotion ? 1 : 4.2,
-      ease: [0.12, 0.85, 0.15, 1],
-      onUpdate: (value) => {
-        setRotationDeg(value);
-        const pocket = pocketAt(value);
-        if (pocket !== lastPocket) {
-          lastPocket = pocket;
-          audio.play("wheelTick", { pitch: 0.9 + Math.random() * 0.2 });
-        }
-      },
-      onComplete: () => {
-        const outcome = evaluateRoulette(result, placedChips);
-        settleBet({
+    const outcome = evaluateRoulette(result, placed);
+    pending.current = () =>
+      settleBet(
+        {
           game: "roulette",
           amount: outcome.totalStake,
           multiplier: outcome.totalStake > 0 ? outcome.totalReturn / outcome.totalStake : 0,
           payout: outcome.totalReturn,
           seeds: toPublicSeeds(seeds),
           result,
-          bets: Object.keys(placedChips).length,
-        });
-        if (outcome.totalReturn > 0) audio.play("cashout");
-        else {
-          audio.play("lose");
-          vibrate(40);
-        }
-        setSpinning(false);
-        setChips({});
-        setLast({ result, profit: outcome.totalReturn - outcome.totalStake, winning: outcome.winning });
-      },
-    });
+          bets: Object.keys(placed).length,
+        },
+        { origin: centerOf(wheelRef) },
+      );
+
+    await renderer.launch(result);
+
+    const settle = pending.current;
+    pending.current = null;
+    if (!settle) return; // already settled on the way out
+    settle();
+    audio.play("land");
+    if (outcome.totalReturn > 0) audio.play("cashout");
+    else {
+      audio.play("lose");
+      vibrate(40);
+    }
+    setSpinning(false);
+    setChips({});
+    setLast({ result, profit: outcome.totalReturn - outcome.totalStake, winning: outcome.winning, placed });
   };
 
   const action: BetAction = {
@@ -149,10 +144,8 @@ export function RouletteGame() {
     sublabel: totalStake > 0 ? `${formatAmount(totalStake)} RBX on ${Object.keys(chips).length} spots` : "Place a bet",
     variant: "bet",
     disabled: spinning || totalStake <= 0,
-    onClick: spin,
+    onClick: () => void spin(),
   };
-
-  const winning = last?.winning ?? [];
 
   return (
     <div className="grid gap-4 pb-60 lg:grid-cols-[340px_minmax(0,1fr)] lg:pb-0">
@@ -164,7 +157,12 @@ export function RouletteGame() {
         locked={locked}
         summary={totalStake > 0 ? `${formatAmount(totalStake)} RBX staked` : "European roulette"}
       >
-        <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">Chip = bet amount above</p>
+        <div className="flex items-center gap-3">
+          <ChipStack amount={chip} size="md" count={1} />
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-500">
+            Chip value = bet amount above
+          </p>
+        </div>
         <div className="flex gap-2">
           <button
             type="button"
@@ -189,232 +187,278 @@ export function RouletteGame() {
       </BetPanel>
 
       <section className="flex min-w-0 flex-col gap-4">
-        <div data-game-stage className="glass glass-edge relative flex flex-col items-center gap-4 overflow-hidden rounded-3xl p-4 sm:p-6">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_at_top,rgb(214_26_60/0.12),transparent_70%)]" />
-          <Wheel rotationDeg={rotationDeg} result={last?.result ?? null} spinning={spinning} />
+        <div
+          data-game-stage
+          className="glass glass-edge relative flex flex-col items-center gap-2 overflow-hidden rounded-3xl p-4 sm:p-6"
+        >
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-[radial-gradient(ellipse_at_top,rgb(214_26_60/0.14),transparent_70%)]" />
+          <PerspectiveGrid className="h-[45%] opacity-50" glow={false} />
 
-          <AnimatePresence>
-            {last && (
-              <motion.div
-                key={`res-${last.result}-${last.profit}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-3 font-mono text-sm"
-              >
-                <span
-                  className="grid size-9 place-items-center rounded-lg font-bold text-white"
-                  style={{ backgroundColor: COLOR_FILL[rouletteColor(last.result)] }}
+          <RecentResults recent={recent} />
+
+          <div ref={wheelRef} className="relative w-full">
+            <RouletteWheel rendererRef={rendererRef} result={last?.result ?? null} />
+          </div>
+
+          <div className="relative flex h-9 items-center justify-center [perspective:600px]">
+            <AnimatePresence mode="wait">
+              {last ? (
+                <motion.p
+                  key={`res-${last.result}-${last.profit}`}
+                  initial={{ rotateX: -90, opacity: 0 }}
+                  animate={{ rotateX: 0, opacity: 1 }}
+                  exit={{ rotateX: 90, opacity: 0, transition: { duration: 0.15 } }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                  className={cn(
+                    "rounded-xl border px-4 py-1.5 font-mono text-sm font-semibold",
+                    last.profit > 0
+                      ? "border-toxic/40 bg-toxic/10 text-toxic shadow-glow-toxic"
+                      : last.profit < 0
+                        ? "border-neon-red/30 bg-neon-red/10 text-neon-red"
+                        : "border-white/10 bg-white/5 text-zinc-300",
+                  )}
                 >
-                  {last.result}
-                </span>
-                <span className={cn("font-semibold", last.profit > 0 ? "text-toxic" : last.profit < 0 ? "text-neon-red" : "text-zinc-300")}>
                   {last.profit === 0 ? "No win" : `${formatSignedAmount(last.profit)} RBX`}
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.p>
+              ) : (
+                <motion.p
+                  key={spinning ? "spinning" : "idle"}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="font-display text-xs font-semibold uppercase tracking-[0.3em] text-zinc-500"
+                >
+                  {spinning ? "No more bets" : "Place your chips"}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        <Board chips={chips} winning={winning} onPlace={place} disabled={locked} />
+        <Board chips={chips} last={last} onPlace={place} disabled={locked} />
       </section>
     </div>
   );
 }
 
-function Wheel({ rotationDeg, result, spinning }: { rotationDeg: number; result: number | null; spinning: boolean }) {
+/** Strip of the latest results, newest first. New numbers flip in from the left. */
+function RecentResults({ recent }: { recent: RouletteRecord[] }) {
   return (
-    <div className="relative aspect-square w-full max-w-[19rem]">
-      {/* pointer */}
-      <div className="absolute left-1/2 top-[-2px] z-10 -ml-3 h-8 w-6 drop-shadow-[0_0_8px_rgb(255_255_255/0.7)]">
-        <svg viewBox="0 0 24 32" className="size-full" aria-hidden>
-          <path d="M2 2h20L12 30Z" fill="#ffffff" stroke="#9ca3af" strokeWidth="1.5" strokeLinejoin="round" />
-        </svg>
-      </div>
-      <svg viewBox={`0 0 ${WHEEL_SIZE} ${WHEEL_SIZE}`} className="size-full" style={{ transform: `rotate(${rotationDeg}deg)` }} aria-hidden>
-        <circle cx={C} cy={C} r={R + 8} fill="#07080a" stroke="#3a2a12" strokeWidth="4" />
-        {WHEEL_ORDER.map((n, i) => (
-          <path key={n} d={wedge(i)} fill={COLOR_FILL[rouletteColor(n)]} stroke="#00000055" strokeWidth="0.5" />
-        ))}
-        {WHEEL_ORDER.map((n, i) => {
-          const [x, y] = point(i * SEG, R - 12);
-          return (
-            <text
-              key={`t${n}`}
-              x={x}
-              y={y}
-              fontSize="9"
-              fontWeight="700"
-              fill="#ffffff"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              transform={`rotate(${i * SEG} ${x} ${y})`}
-              style={{ fontFamily: "var(--font-geist-mono)" }}
+    <div className="relative flex w-full items-center gap-2">
+      <span className="shrink-0 font-display text-[10px] font-semibold uppercase tracking-[0.25em] text-zinc-500">Last</span>
+      <ol className="flex min-w-0 flex-1 gap-1.5 overflow-hidden [mask-image:linear-gradient(to_right,black_80%,transparent)] [perspective:500px]">
+        {recent.length === 0 && <li className="text-xs text-zinc-600">No spins yet</li>}
+        <AnimatePresence initial={false} mode="popLayout">
+          {recent.map((bet, i) => (
+            <motion.li
+              key={bet.id}
+              layout
+              initial={{ rotateY: -120, scale: 0.4, opacity: 0 }}
+              animate={{ rotateY: 0, scale: 1, opacity: i === 0 ? 1 : Math.max(0.35, 1 - i * 0.06) }}
+              exit={{ opacity: 0, scale: 0.5 }}
+              transition={{ type: "spring", stiffness: 380, damping: 24 }}
+              className={cn(
+                "grid size-7 shrink-0 place-items-center rounded-md font-mono text-xs font-bold text-white ring-1 ring-white/10",
+                i === 0 && "ring-2 ring-gold/70",
+              )}
+              style={{ backgroundColor: COLOR_FILL[rouletteColor(bet.result)] }}
             >
-              {n}
-            </text>
-          );
-        })}
-        <circle cx={C} cy={C} r="46" fill="#0a0b0d" stroke="#3a2a12" strokeWidth="3" />
-        <circle cx={C} cy={C} r="30" fill="url(#hub)" />
-        <defs>
-          <radialGradient id="hub" cx="0.4" cy="0.35" r="0.7">
-            <stop offset="0" stopColor="#e2ffd8" />
-            <stop offset="0.5" stopColor="#39ff14" />
-            <stop offset="1" stopColor="#1a8f00" />
-          </radialGradient>
-        </defs>
-      </svg>
-      {/* center readout */}
-      <div className="pointer-events-none absolute inset-0 grid place-items-center">
-        <span className="font-display text-2xl font-bold text-black">{spinning || result === null ? "" : result}</span>
-      </div>
+              {bet.result}
+            </motion.li>
+          ))}
+        </AnimatePresence>
+      </ol>
     </div>
   );
 }
 
 function Board({
   chips,
-  winning,
+  last,
   onPlace,
   disabled,
 }: {
   chips: Record<string, number>;
-  winning: string[];
+  last: LastRound | null;
   onPlace: (id: string) => void;
   disabled: boolean;
 }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+  const covers = hovered ? rouletteSpot(hovered)?.covers : undefined;
   const rows = Array.from({ length: 12 }, (_, r) => [1 + r * 3, 2 + r * 3, 3 + r * 3]);
+  const winning = last?.winning ?? [];
+
+  const cell = (id: string) => ({
+    chips: chips[id],
+    won: winning.includes(id) ? (last?.placed[id] ?? 0) : 0,
+    onPlace: () => onPlace(id),
+    onHover: (on: boolean) => setHovered(on ? id : null),
+    disabled,
+  });
 
   return (
-    <div className="glass glass-edge rounded-2xl p-3 sm:p-4">
-      <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))_auto] gap-1">
-        {/* zero spans all rows on the left */}
-        <button
-          type="button"
-          onClick={() => onPlace("n:0")}
-          disabled={disabled}
-          className={cn(
-            "relative row-span-full grid place-items-center rounded-md bg-[#0b8a3a] font-mono text-sm font-bold text-white transition hover:brightness-125 disabled:cursor-default",
-            winning.includes("n:0") && "ring-2 ring-white",
-          )}
-        >
-          0
-          <ChipBadge amount={chips["n:0"]} />
-        </button>
+    <div className="[perspective:1400px]">
+      <div className="glass glass-edge origin-bottom rounded-2xl p-3 sm:p-4 lg:[transform:rotateX(8deg)]">
+        {/* Explicit placement: zero spans the 12 number rows, the 2:1 bets sit below their columns */}
+        <div className="grid grid-cols-[auto_repeat(3,minmax(0,1fr))] gap-1">
+          <Spot
+            {...cell("n:0")}
+            className="px-2.5 font-mono text-sm font-bold text-white"
+            style={{ backgroundColor: COLOR_FILL.green, gridColumn: 1, gridRow: "1 / span 12" }}
+            highlight={covers?.(0) ?? false}
+            dolly={last?.result === 0}
+          >
+            0
+          </Spot>
 
-        {rows.map((row) =>
-          row.map((n) => {
-            const id = `n:${n}`;
-            return (
-              <button
+          {rows.map((row) =>
+            row.map((n) => (
+              <Spot
                 key={n}
-                type="button"
-                onClick={() => onPlace(id)}
-                disabled={disabled}
-                className={cn(
-                  "relative grid aspect-[4/3] place-items-center rounded-md font-mono text-sm font-bold text-white transition hover:brightness-125 disabled:cursor-default",
-                  winning.includes(id) && "ring-2 ring-white",
-                )}
-                style={{ backgroundColor: COLOR_FILL[rouletteColor(n)] }}
+                {...cell(`n:${n}`)}
+                className="aspect-[4/3] font-mono text-sm font-bold text-white"
+                style={{
+                  backgroundColor: COLOR_FILL[rouletteColor(n)],
+                  gridColumn: ((n - 1) % 3) + 2,
+                  gridRow: Math.floor((n - 1) / 3) + 1,
+                }}
+                highlight={covers?.(n) ?? false}
+                dolly={last?.result === n}
               >
                 {n}
-                <ChipBadge amount={chips[id]} />
-              </button>
-            );
-          }),
-        )}
+              </Spot>
+            )),
+          )}
 
-        {/* column 2:1 bets, one per grid column */}
-        {ROULETTE_COLUMNS.map(({ id }, i) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onPlace(id)}
-            disabled={disabled}
-            style={{ gridColumn: i + 2 }}
-            className={cn(
-              "relative grid place-items-center rounded-md border border-white/10 bg-white/[0.04] py-1.5 font-mono text-[11px] font-semibold text-zinc-200 transition hover:border-toxic/40 disabled:cursor-default",
-              winning.includes(id) && "ring-2 ring-toxic",
-            )}
-          >
-            2:1
-            <ChipBadge amount={chips[id]} />
-          </button>
-        ))}
-      </div>
+          {ROULETTE_COLUMNS.map(({ id }, i) => (
+            <Spot
+              key={id}
+              {...cell(id)}
+              style={{ gridColumn: i + 2, gridRow: 13 }}
+              className="border border-white/10 bg-white/[0.04] py-1.5 font-mono text-[11px] font-semibold text-zinc-200"
+            >
+              2:1
+            </Spot>
+          ))}
+        </div>
 
-      {/* dozens */}
-      <div className="mt-1 grid grid-cols-3 gap-1">
-        {ROULETTE_OUTSIDE.slice(0, 3).map(({ id, label }) => (
-          <OutsideCell key={id} id={id} label={label} chips={chips} winning={winning} onPlace={onPlace} disabled={disabled} />
-        ))}
-      </div>
+        {/* dozens */}
+        <div className="mt-1 grid grid-cols-3 gap-1">
+          {ROULETTE_OUTSIDE.slice(0, 3).map(({ id, label }) => (
+            <Spot key={id} {...cell(id)} className="border border-white/10 bg-white/[0.04] py-2 text-xs font-semibold text-zinc-200">
+              {label}
+            </Spot>
+          ))}
+        </div>
 
-      {/* even money + red/black */}
-      <div className="mt-1 grid grid-cols-6 gap-1">
-        {ROULETTE_OUTSIDE.slice(3).map(({ id, label }) => (
-          <OutsideCell
-            key={id}
-            id={id}
-            label={label}
-            chips={chips}
-            winning={winning}
-            onPlace={onPlace}
-            disabled={disabled}
-            tone={id === "red" ? "red" : id === "black" ? "black" : undefined}
-          />
-        ))}
+        {/* even money + red/black */}
+        <div className="mt-1 grid grid-cols-6 gap-1">
+          {ROULETTE_OUTSIDE.slice(3).map(({ id, label }) => (
+            <Spot
+              key={id}
+              {...cell(id)}
+              className={cn(
+                "border py-2 text-xs font-semibold",
+                id === "red" || id === "black" ? "border-transparent text-white" : "border-white/10 bg-white/[0.04] text-zinc-200",
+              )}
+              style={id === "red" || id === "black" ? { backgroundColor: COLOR_FILL[id] } : undefined}
+            >
+              {label}
+            </Spot>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function OutsideCell({
-  id,
-  label,
+/** One betting spot: lifts on hover, shows the chips on it and the win marker. */
+function Spot({
+  children,
+  className,
+  style,
   chips,
-  winning,
+  won,
+  highlight = false,
+  dolly = false,
   onPlace,
+  onHover,
   disabled,
-  tone,
 }: {
-  id: string;
-  label: string;
-  chips: Record<string, number>;
-  winning: string[];
-  onPlace: (id: string) => void;
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+  chips: number | undefined;
+  /** Stake that won on this spot in the last round (0 = none) */
+  won: number;
+  highlight?: boolean;
+  dolly?: boolean;
+  onPlace: () => void;
+  onHover: (on: boolean) => void;
   disabled: boolean;
-  tone?: "red" | "black";
 }) {
   return (
-    <button
+    <motion.button
       type="button"
-      onClick={() => onPlace(id)}
+      onClick={onPlace}
+      onPointerEnter={() => onHover(true)}
+      onPointerLeave={() => onHover(false)}
       disabled={disabled}
+      whileHover={disabled ? undefined : { y: -2, scale: 1.04 }}
+      whileTap={disabled ? undefined : { scale: 0.95 }}
+      transition={{ type: "spring", stiffness: 600, damping: 30 }}
+      style={style}
       className={cn(
-        "relative grid place-items-center rounded-md border py-2 text-xs font-semibold transition hover:brightness-125 disabled:cursor-default",
-        tone === "red" && "border-transparent bg-[#d61a3c] text-white",
-        tone === "black" && "border-transparent bg-[#15171b] text-white",
-        !tone && "border-white/10 bg-white/[0.04] text-zinc-200 hover:border-toxic/40",
-        winning.includes(id) && "ring-2 ring-white",
+        "relative grid place-items-center rounded-md transition-[filter,box-shadow] disabled:cursor-default",
+        !disabled && "hover:z-10 hover:brightness-125",
+        highlight && "z-10 brightness-125 shadow-[0_0_0_1px_rgb(255_255_255/0.6),0_0_14px_rgb(255_255_255/0.25)]",
+        won > 0 && "z-10 shadow-[0_0_0_2px_var(--color-toxic),0_0_18px_rgb(57_255_20/0.6)]",
+        className,
       )}
     >
-      {label}
-      <ChipBadge amount={chips[id]} />
-    </button>
-  );
-}
+      {children}
 
-function ChipBadge({ amount }: { amount: number | undefined }) {
-  if (!amount) return null;
-  return (
-    <motion.span
-      initial={{ scale: 0.4, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      className="absolute -right-1 -top-1 grid size-6 place-items-center rounded-full border-2 border-white bg-toxic font-mono text-[9px] font-bold text-black shadow-[0_0_8px_rgb(57_255_20/0.7)]"
-    >
-      {formatCompactAmount(amount).replace(/\.00$/, "")}
-    </motion.span>
+      <AnimatePresence>
+        {chips ? (
+          <motion.span
+            key="chips"
+            className="pointer-events-none absolute -right-1.5 -top-2 z-10"
+            initial={{ y: -28, scale: 1.6, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: -36, scale: 0.6, opacity: 0, transition: { duration: 0.4, ease: "easeIn" } }}
+            transition={{ type: "spring", stiffness: 520, damping: 20 }}
+          >
+            <motion.span key={chips} className="block" initial={{ scale: 1.25 }} animate={{ scale: 1 }}>
+              <ChipStack amount={chips} size="xs" count={Math.min(3, 1 + Math.floor(Math.log2(chips / 100 + 1)))} />
+            </motion.span>
+          </motion.span>
+        ) : won > 0 ? (
+          <motion.span
+            key="won"
+            className="pointer-events-none absolute -right-1.5 -top-2 z-10"
+            initial={{ y: -40, opacity: 0, scale: 1.4 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.2 } }}
+            transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.25 }}
+          >
+            <ChipStack amount={won} size="xs" count={3} glow />
+          </motion.span>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {dolly && (
+          <motion.span
+            key="dolly"
+            aria-label="Winning number"
+            className="pointer-events-none absolute bottom-0.5 left-0.5 z-10 size-3.5 rounded-full bg-[radial-gradient(circle_at_35%_30%,#fff,#d4d4d8)] shadow-[0_2px_0_#71717a,0_3px_6px_rgb(0_0_0/0.6)]"
+            initial={{ y: -40, scale: 1.8, opacity: 0 }}
+            animate={{ y: 0, scale: 1, opacity: 1 }}
+            exit={{ y: -20, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 16 }}
+          />
+        )}
+      </AnimatePresence>
+    </motion.button>
   );
 }

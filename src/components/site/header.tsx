@@ -9,8 +9,8 @@ export async function Header() {
   return (
     <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-black/60 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg bg-toxic/10 ring-1 ring-toxic/40 shadow-[0_0_20px_-4px_rgb(57_255_20/0.7)]">
+        <Link href="/" className="group flex items-center gap-2.5 [perspective:400px]">
+          <span className="grid size-8 place-items-center rounded-lg bg-toxic/10 shadow-[0_0_20px_-4px_rgb(57_255_20/0.7)] ring-1 ring-toxic/40 transition-transform duration-700 ease-out group-hover:[transform:rotateY(360deg)]">
             <span className="font-display text-sm font-bold text-toxic">R</span>
           </span>
           <span className="font-display text-lg font-bold uppercase tracking-[0.18em] text-white">

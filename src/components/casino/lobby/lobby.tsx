@@ -1,12 +1,15 @@
 "use client";
 
-import { AnimatePresence, motion, useMotionTemplate, useMotionValue, useSpring } from "motion/react";
-import { useRef, type ComponentType, type PointerEvent, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import type { ComponentType, ReactNode } from "react";
 import { FreeSpinCard } from "@/components/casino/bonus/bonus-wheel";
 import { LiveFeed } from "@/components/casino/shell/live-feed";
 import { Coin } from "@/components/casino/ui/coin";
 import { GAME_ICONS, TrophyIcon } from "@/components/casino/ui/icons";
 import { VipCard } from "@/components/casino/vip/level-badge";
+import { FloatingScene } from "@/components/fx/floating-scene";
+import { PerspectiveGrid } from "@/components/fx/perspective-grid";
+import { TiltCard } from "@/components/fx/tilt-card";
 import { audio } from "@/lib/audio/audio-engine";
 import { GAME_IDS, GAMES, type GameId } from "@/lib/casino/games";
 import { formatAmount, formatCompactAmount, formatMultiplier, formatNumber, formatSignedAmount } from "@/lib/casino/money";
@@ -19,9 +22,10 @@ const container = {
   hidden: {},
   show: { transition: { staggerChildren: 0.06 } },
 };
+/** Sections swing up out of the page, one after another. */
 const item = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 28 } },
+  hidden: { opacity: 0, y: 24, rotateX: -14 },
+  show: { opacity: 1, y: 0, rotateX: 0, transition: { type: "spring" as const, stiffness: 220, damping: 24 } },
 };
 
 /** Link component from outside: next/link in the app, plain anchors in the demo. */
@@ -58,7 +62,7 @@ export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: Lo
   ];
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-6 [perspective:1600px]">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         {/* Hero */}
         <motion.section
@@ -67,6 +71,8 @@ export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: Lo
         >
           <div className="bg-grid pointer-events-none absolute inset-0 [mask-image:linear-gradient(to_right,transparent,black_60%)]" />
           <div className="pointer-events-none absolute -right-20 -top-20 size-96 animate-drift rounded-full bg-[radial-gradient(closest-side,rgb(57_255_20/0.25),transparent)]" />
+          <PerspectiveGrid className="h-1/2 opacity-60" />
+          <FloatingScene variant="compact" className="hidden md:block" />
           <div className="relative max-w-xl">
             <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-toxic/30 bg-toxic/[0.08] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-toxic">
               <span className="size-1.5 animate-glow-pulse rounded-full bg-toxic" /> Live simulation
@@ -77,7 +83,7 @@ export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: Lo
               <span className="neon-text-toxic">{name}</span>
             </h1>
             <p className="mt-4 max-w-md text-zinc-400">
-              Four games, one wallet, everything provably fair. You play with virtual Rainbucks. There is no real money
+              Six games, one wallet, everything provably fair. You play with virtual Rainbucks. There is no real money
               here.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -128,7 +134,7 @@ export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: Lo
       {/* Games */}
       <motion.section variants={item}>
         <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-[0.25em] text-zinc-400">Games</h2>
-        <div className="grid grid-cols-1 gap-4 [perspective:1200px] sm:grid-cols-2 2xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {GAME_IDS.map((id) => {
             const game = GAMES[id];
             const Icon = GAME_ICONS[id];
@@ -177,50 +183,6 @@ export function Lobby({ Link, hrefFor }: { Link: LobbyLink; hrefFor: (target: Lo
           <LiveFeed limit={12} />
         </div>
       </motion.section>
-    </motion.div>
-  );
-}
-
-/** Card that tilts towards the mouse, with a glare that follows the pointer. */
-function TiltCard({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const rotateX = useSpring(0, { stiffness: 260, damping: 22 });
-  const rotateY = useSpring(0, { stiffness: 260, damping: 22 });
-  const glareX = useMotionValue(50);
-  const glareY = useMotionValue(50);
-  const glare = useMotionTemplate`radial-gradient(circle at ${glareX}% ${glareY}%, rgb(255 255 255 / 0.14), transparent 55%)`;
-
-  const onMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerType !== "mouse" || !ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width;
-    const y = (event.clientY - rect.top) / rect.height;
-    rotateY.set((x - 0.5) * 14);
-    rotateX.set((0.5 - y) * 12);
-    glareX.set(x * 100);
-    glareY.set(y * 100);
-  };
-  const reset = () => {
-    rotateX.set(0);
-    rotateY.set(0);
-  };
-
-  return (
-    <motion.div
-      ref={ref}
-      onPointerMove={onMove}
-      onPointerLeave={reset}
-      whileHover={{ y: -6 }}
-      transition={{ type: "spring", stiffness: 400, damping: 26 }}
-      style={{ rotateX, rotateY }}
-      className="group relative min-w-0 [transform-style:preserve-3d]"
-    >
-      {children}
-      <motion.div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background: glare }}
-      />
     </motion.div>
   );
 }

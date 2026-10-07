@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s · Rainbucks",
   },
   description:
-    "Demo casino with virtual play money: Crash, Mines, Limbo and Plinko. Provably fair, no real money.",
+    "Demo casino with virtual play money: Crash, Mines, Limbo, Plinko, Blackjack and Roulette. Provably fair, no real money.",
 };
 
 export const viewport: Viewport = {

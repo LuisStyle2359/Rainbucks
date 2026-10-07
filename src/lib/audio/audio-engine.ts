@@ -29,7 +29,10 @@ export type SoundId =
   | "wheelTick"
   | "peg"
   | "land"
-  | "countdown";
+  | "countdown"
+  | "card"
+  | "flip"
+  | "chip";
 
 export interface PlayOptions {
   /** Pitch factor, 1 = normal */
@@ -47,6 +50,8 @@ const THROTTLE_MS: Partial<Record<SoundId, number>> = {
   land: 40,
   click: 30,
   coin: 28,
+  card: 40,
+  chip: 30,
 };
 
 type Voice = (ctx: AudioContext, out: AudioNode, t: number, o: Required<PlayOptions>) => void;
@@ -397,6 +402,22 @@ const VOICES: Record<SoundId, VoiceWithEngine> = {
   },
   countdown: (e, ctx, out, t, o) => {
     e.tone(ctx, out, { type: "sine", freq: 880 * o.pitch, start: t, duration: 0.07, gain: 0.05 * o.volume });
+  },
+  card: (e, ctx, out, t, o) => {
+    // Swish through the air, then a soft slap on the felt
+    e.noise(ctx, out, { start: t, duration: 0.09, gain: 0.07 * o.volume, filter: "bandpass", freq: 2200 * o.pitch, freqEnd: 6500 * o.pitch, q: 1.4 });
+    e.tone(ctx, out, { type: "sine", freq: 190 * o.pitch, freqEnd: 90, start: t + 0.07, duration: 0.06, gain: 0.07 * o.volume });
+    e.noise(ctx, out, { start: t + 0.07, duration: 0.03, gain: 0.04 * o.volume, filter: "lowpass", freq: 1800 });
+  },
+  flip: (e, ctx, out, t, o) => {
+    e.noise(ctx, out, { start: t, duration: 0.05, gain: 0.06 * o.volume, filter: "highpass", freq: 3800 * o.pitch });
+    e.tone(ctx, out, { type: "triangle", freq: 900 * o.pitch, freqEnd: 1500 * o.pitch, start: t + 0.01, duration: 0.04, gain: 0.03 * o.volume });
+  },
+  chip: (e, ctx, out, t, o) => {
+    // Two clay chips clacking together
+    e.tone(ctx, out, { type: "triangle", freq: 2300 * o.pitch, start: t, duration: 0.025, gain: 0.05 * o.volume });
+    e.tone(ctx, out, { type: "triangle", freq: 3100 * o.pitch, start: t + 0.035, duration: 0.03, gain: 0.035 * o.volume });
+    e.noise(ctx, out, { start: t, duration: 0.03, gain: 0.05 * o.volume, filter: "bandpass", freq: 5200 * o.pitch, q: 3 });
   },
 };
 
